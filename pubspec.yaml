@@ -1,0 +1,20 @@
+name: quadrant_todo_workspace
+description: >-
+  Pub workspace root for the Quadrant Todo project. The Flutter application
+  in apps/quadrant_todo is intentionally not a workspace member because it
+  requires the Flutter SDK; every pure-Dart package and the standalone
+  server resolve together through this workspace.
+publish_to: none
+
+environment:
+  sdk: ^3.9.0
+
+workspace:
+  - packages/quadrant_domain
+  - packages/quadrant_application
+  - packages/quadrant_store
+  - packages/quadrant_api_server
+  - packages/quadrant_api_client
+  - packages/quadrant_backend_host
+  - packages/quadrant_conformance
+  - server

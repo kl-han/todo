@@ -1,0 +1,8 @@
+# Readiness probe (no authentication required)
+GET http://127.0.0.1:{{port}}/api/v1/health
+
+# Expected response
+# HTTP/1.1 200 OK
+# Content-Type: application/json
+#
+# {"status":"ok","api_version":"v1","schema_version":0,"backend":"embedded"}

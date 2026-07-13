@@ -1,0 +1,27 @@
+name: quadrant_todo
+description: Quadrant Todo — Eisenhower-matrix task manager for iOS and Linux.
+version: 0.1.0
+publish_to: none
+
+# Not a pub-workspace member: this package requires the Flutter SDK, which
+# the pure-Dart workspace (and CI for it) must not depend on. Run
+# `flutter pub get` here with a local Flutter installation.
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.0
+  quadrant_api_client:
+    path: ../../packages/quadrant_api_client
+  quadrant_backend_host:
+    path: ../../packages/quadrant_backend_host
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

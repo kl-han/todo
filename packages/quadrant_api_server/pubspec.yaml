@@ -1,0 +1,16 @@
+name: quadrant_api_server
+description: Shared REST handlers, routing, middleware, and DTOs for Quadrant Todo.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  quadrant_application: ^0.1.0
+  shelf: ^1.4.0
+  shelf_router: ^1.1.0
+
+dev_dependencies:
+  test: ^1.25.0

@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  dart:
+    name: Analyze and test (Dart workspace)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - run: dart pub get
+      - run: dart analyze --fatal-infos
+      - name: Unit and contract tests
+        run: |
+          for pkg in packages/quadrant_domain packages/quadrant_application \
+                     packages/quadrant_store packages/quadrant_api_server \
+                     packages/quadrant_api_client packages/quadrant_backend_host \
+                     packages/quadrant_conformance server; do
+            if [ -d "$pkg/test" ]; then
+              echo "== $pkg =="
+              (cd "$pkg" && dart test --reporter=github)
+            fi
+          done
+
+  docs:
+    name: Documentation build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install sphinx furo
+      - run: sphinx-build -W --keep-going -b html docs/src docs/build/html
+
+  linkcheck:
+    name: Documentation linkcheck (advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install sphinx furo
+      - run: sphinx-build -W --keep-going -b linkcheck docs/src docs/build/linkcheck

@@ -1,0 +1,106 @@
+openapi: 3.1.0
+info:
+  title: Quadrant Todo API
+  description: >-
+    Normative REST contract for Quadrant Todo. The same contract is served
+    by the embedded (loopback) backend and the standalone server; both must
+    pass the shared conformance suite. Errors use RFC 9457 Problem Details.
+  version: 0.1.0
+
+servers:
+  - url: http://127.0.0.1:{port}
+    description: Embedded loopback backend (ephemeral port, per-launch token).
+    variables:
+      port:
+        default: "0"
+  - url: https://todo.example.net
+    description: Standalone remote backend.
+
+tags:
+  - name: system
+    description: Process readiness and capability discovery.
+
+paths:
+  /api/v1/health:
+    get:
+      operationId: getHealth
+      tags: [system]
+      summary: Process readiness.
+      description: >-
+        Reports whether the backend is ready to serve requests. This is the
+        only route that does not require authentication; clients poll it
+        during startup before constructing the typed REST client.
+      security: []
+      responses:
+        "200":
+          description: The backend is ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+              examples:
+                embedded:
+                  value:
+                    status: ok
+                    api_version: v1
+                    schema_version: 0
+                    backend: embedded
+
+components:
+  securitySchemes:
+    localToken:
+      type: http
+      scheme: local
+      description: >-
+        Embedded backend authentication: `Authorization: Local <token>`
+        where the token is a random per-launch 256-bit value that is never
+        persisted.
+    bearerToken:
+      type: http
+      scheme: bearer
+      description: Standalone backend authentication with a persistent token.
+
+  schemas:
+    Health:
+      type: object
+      required: [status, api_version, schema_version, backend]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        api_version:
+          type: string
+          description: Major API version identifier.
+          enum: [v1]
+        schema_version:
+          type: integer
+          description: Current database schema version of the backend.
+        backend:
+          type: string
+          description: Which backend kind produced the response.
+          enum: [embedded, standalone]
+
+    Problem:
+      type: object
+      description: RFC 9457 Problem Details error body.
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          description: >-
+            Problem type URI; registered types live under
+            `api/problem-types/`.
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference
+
+security:
+  - localToken: []
+  - bearerToken: []

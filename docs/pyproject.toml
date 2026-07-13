@@ -1,0 +1,9 @@
+[project]
+name = "quadrant-todo-docs"
+version = "0.1.0"
+description = "Sphinx documentation for Quadrant Todo"
+requires-python = ">=3.11"
+dependencies = [
+    "sphinx>=8",
+    "furo",
+]

@@ -1,0 +1,17 @@
+include: package:lints/recommended.yaml
+
+analyzer:
+  exclude:
+    # The Flutter app resolves against the Flutter SDK and is analyzed with
+    # `flutter analyze` inside apps/quadrant_todo, not by the pure-Dart
+    # workspace context.
+    - apps/**
+    - docs/**
+    - devops/**
+
+linter:
+  rules:
+    - always_declare_return_types
+    - directives_ordering
+    - prefer_single_quotes
+    - unawaited_futures
