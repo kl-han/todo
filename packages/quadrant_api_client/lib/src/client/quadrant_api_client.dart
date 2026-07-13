@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../dto/capabilities.dart';
+import '../dto/focus_session_dto.dart';
 import '../dto/health_report.dart';
 import '../dto/recurrence_dto.dart';
 import '../dto/tag_dto.dart';
@@ -232,6 +233,79 @@ class QuadrantApiClient {
         QuadrantGroupDto.fromJson(group as Map<String, Object?>),
     ];
   }
+
+  // ---- Focus sessions ----
+
+  /// POST /focus-sessions — starts the timer server-side. 409 when a
+  /// session is already active.
+  Future<FocusSessionDto> startFocusSession({
+    String vault = 'default',
+    String? taskId,
+    String? occurrenceId,
+    String? deviceId,
+    required int plannedFocusSeconds,
+    int? plannedBreakSeconds,
+    String? notes,
+  }) async =>
+      FocusSessionDto.fromJson(await _request(
+        'POST',
+        '/api/v1/vaults/$vault/focus-sessions',
+        body: {
+          'task_id': ?taskId,
+          'occurrence_id': ?occurrenceId,
+          'device_id': ?deviceId,
+          'planned_focus_seconds': plannedFocusSeconds,
+          'planned_break_seconds': ?plannedBreakSeconds,
+          'notes': ?notes,
+        },
+      ));
+
+  Future<List<FocusSessionDto>> listFocusSessions({
+    String vault = 'default',
+    bool? active,
+    String? taskId,
+  }) async {
+    final json = await _request(
+      'GET',
+      '/api/v1/vaults/$vault/focus-sessions',
+      query: {
+        'active': ?active?.toString(),
+        'task_id': ?taskId,
+      },
+    );
+    return [
+      for (final session in json['focus_sessions'] as List<Object?>)
+        FocusSessionDto.fromJson(session as Map<String, Object?>),
+    ];
+  }
+
+  Future<FocusSessionDto> getFocusSession(
+    String id, {
+    String vault = 'default',
+  }) async =>
+      FocusSessionDto.fromJson(await _request(
+          'GET', '/api/v1/vaults/$vault/focus-sessions/$id'));
+
+  /// PATCH /focus-sessions/{id} — pass [action] (`pause`/`resume`) or
+  /// [result] (`completed`/`cancelled`/`interrupted`), not both.
+  Future<FocusSessionDto> updateFocusSession(
+    String id, {
+    String vault = 'default',
+    int? ifMatchVersion,
+    String? action,
+    String? result,
+    String? notes,
+  }) async =>
+      FocusSessionDto.fromJson(await _request(
+        'PATCH',
+        '/api/v1/vaults/$vault/focus-sessions/$id',
+        ifMatchVersion: ifMatchVersion,
+        body: {
+          'action': ?action,
+          'result': ?result,
+          'notes': ?notes,
+        },
+      ));
 
   // ---- Recurrence ----
 

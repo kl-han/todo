@@ -1,7 +1,7 @@
 Database Reference
 ==================
 
-Schema version: **3** (see :doc:`/implementation/sqlite-schema` for DDL
+Schema version: **4** (see :doc:`/implementation/sqlite-schema` for DDL
 and :doc:`/implementation/migrations` for the upgrade policy).
 
 Tables
@@ -58,6 +58,17 @@ Tables
    ``version``. Effective triggers are computed on read, never stored.
 
    .. versionadded:: 1.2
+
+``focus_sessions``
+   ``id`` (uuid PK), ``task_id?``/``occurrence_id?`` (SET NULL FKs),
+   ``device_id?``, planned focus/break seconds, ``phase``
+   (``running|paused|finished``), ``started_at``, ``ended_at?``,
+   accumulated ``active_seconds``/``paused_seconds``,
+   ``last_transition_at``, ``interruption_count``, ``result?``,
+   ``notes``, timestamps, ``version``. Durations accumulate at phase
+   transitions; live portions are derived, never stored.
+
+   .. versionadded:: 1.3
 
 Conventions
 -----------

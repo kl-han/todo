@@ -18,4 +18,5 @@ workspace:
   - packages/quadrant_api_client
   - packages/quadrant_backend_host
   - packages/quadrant_conformance
+  - packages/quadrant_agent
   - server

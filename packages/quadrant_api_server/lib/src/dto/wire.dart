@@ -91,6 +91,28 @@ Map<String, Object?> reminderToJson(ResolvedReminder resolved) {
   };
 }
 
+Map<String, Object?> focusSessionToJson(FocusSession session) => {
+      'id': session.id,
+      'task_id': session.taskId,
+      'occurrence_id': session.occurrenceId,
+      'device_id': session.deviceId,
+      'planned_focus_seconds': session.plannedFocusSeconds,
+      'planned_break_seconds': session.plannedBreakSeconds,
+      'phase': session.phase.wireName,
+      'started_at': encodeInstant(session.startedAt),
+      'ended_at':
+          session.endedAt == null ? null : encodeInstant(session.endedAt!),
+      'active_seconds': session.activeSeconds,
+      'paused_seconds': session.pausedSeconds,
+      'last_transition_at': encodeInstant(session.lastTransitionAt),
+      'interruption_count': session.interruptionCount,
+      'result': session.result?.wireName,
+      'notes': session.notes,
+      'created_at': encodeInstant(session.createdAt),
+      'updated_at': encodeInstant(session.updatedAt),
+      'version': session.version,
+    };
+
 Map<String, Object?> tagToJson(Tag tag, TagProgress progress) => {
       'id': tag.id,
       'name': tag.name,

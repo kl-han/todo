@@ -38,23 +38,10 @@ unnecessary privilege and resembles a keylogger.
 systemd user service
 --------------------
 
-.. code-block:: ini
+The shipped unit (``devops/agent/systemd/quadrant-agent.service``,
+installed by :doc:`/devops/agent-service`):
 
-   [Unit]
-   Description=Quadrant personal activity agent
-   PartOf=graphical-session.target
-   After=graphical-session.target
+.. literalinclude:: ../../../devops/agent/systemd/quadrant-agent.service
+   :language: ini
 
-   [Service]
-   ExecStart=%h/.local/bin/quadrant-agent run
-   Restart=on-failure
-   RestartSec=5
-   Environment=RUST_LOG=warn
-
-   [Install]
-   WantedBy=default.target
-
-The service must run as the normal user, without root privileges. When
-the unit file lands in ``devops/``, this page switches to
-``literalinclude`` so the documentation cannot drift from the shipped
-unit.
+The service must run as the normal user, without root privileges.

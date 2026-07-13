@@ -10,6 +10,7 @@ REST API
    agenda-api
    recurrence-api
    reminder-api
+   focus-api
    quadrant-api
    tag-api
    concurrency

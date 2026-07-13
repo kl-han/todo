@@ -556,6 +556,72 @@ void runBackendContractSuite(
     });
   });
 
+  group('focus contract', () {
+    test('the backend owns the timer: sessions survive client turnover '
+        'and only one runs at a time', () async {
+      final session =
+          await client.startFocusSession(plannedFocusSeconds: 1500);
+      expect(session.phase, 'running');
+
+      // A second session is refused while one runs.
+      await expectLater(
+        client.startFocusSession(plannedFocusSeconds: 1500),
+        throwsA(_problem(409, 'problems/conflict')),
+      );
+
+      // A completely fresh client — a "reopened GUI" — sees the same
+      // running session.
+      final fresh = QuadrantApiClient(
+        baseUrl: harness.baseUrl,
+        authorization: harness.authorization,
+      );
+      final active = await fresh.listFocusSessions(active: true);
+      expect(active.single.id, session.id);
+      fresh.close();
+
+      // Pause, resume, finish; durations only ever accumulate.
+      final paused = await client.updateFocusSession(
+        session.id,
+        action: 'pause',
+        ifMatchVersion: session.version,
+      );
+      expect(paused.phase, 'paused');
+      expect(paused.interruptionCount, 1);
+
+      final resumed =
+          await client.updateFocusSession(session.id, action: 'resume');
+      expect(resumed.phase, 'running');
+
+      final finished = await client.updateFocusSession(
+        session.id,
+        result: 'completed',
+        notes: 'conformance block',
+      );
+      expect(finished.phase, 'finished');
+      expect(finished.result, 'completed');
+      expect(finished.endedAt, isNotNull);
+      expect(finished.activeSeconds, greaterThanOrEqualTo(0));
+
+      // Invalid transitions conflict.
+      await expectLater(
+        client.updateFocusSession(session.id, action: 'pause'),
+        throwsA(_problem(409, 'problems/conflict')),
+      );
+    });
+
+    test('validation problems for malformed sessions', () async {
+      await expectLater(
+        client.startFocusSession(plannedFocusSeconds: 5),
+        throwsA(_problem(400, 'problems/validation')),
+      );
+    });
+
+    test('capabilities advertise focus-sessions', () async {
+      final capabilities = await client.capabilities();
+      expect(capabilities.features, contains('focus-sessions'));
+    });
+  });
+
   group('tag contract', () {
     test('tag lifecycle: create, progress, rename, delete', () async {
       final tag = await client.createTag(name: 'suite-lifecycle');

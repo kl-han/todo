@@ -5,7 +5,7 @@ info:
     Normative REST contract for Quadrant Todo. The same contract is served
     by the embedded (loopback) backend and the standalone server; both must
     pass the shared conformance suite. Errors use RFC 9457 Problem Details.
-  version: 1.2.0
+  version: 1.3.0
 
 servers:
   - url: http://127.0.0.1:{port}
@@ -30,6 +30,9 @@ tags:
       occurrences.
   - name: reminders
     description: Reminder records and platform (re)scheduling state.
+  - name: focus
+    description: Pomodoro focus sessions; the backend owns the timer, so
+      closing a GUI never cancels a session.
   - name: tags
     description: Tag CRUD and progress.
 
@@ -515,6 +518,117 @@ paths:
         "204":
           description: Deleted.
         "404": { $ref: "#/components/responses/NotFoundProblem" }
+        "412": { $ref: "#/components/responses/VersionConflictProblem" }
+
+  /api/v1/vaults/{vault_id}/focus-sessions:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+    get:
+      operationId: listFocusSessions
+      tags: [focus]
+      summary: Query focus sessions.
+      parameters:
+        - name: active
+          in: query
+          schema: { type: boolean }
+          description: >-
+            true returns only unfinished sessions; false only finished;
+            absent returns all.
+        - name: task_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Sessions, newest started first, then id.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [focus_sessions]
+                properties:
+                  focus_sessions:
+                    type: array
+                    items: { $ref: "#/components/schemas/FocusSession" }
+    post:
+      operationId: startFocusSession
+      tags: [focus]
+      summary: Start a focus session (the timer starts server-side).
+      description: >-
+        At most one unfinished session exists per vault; starting while
+        one is active is a 409 conflict. Durations accumulate at phase
+        transitions with negative wall-clock deltas clamped to zero, so
+        a clock moving backward can never produce negative durations.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FocusSessionCreate" }
+      responses:
+        "201":
+          description: The running session.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FocusSession" }
+        "400": { $ref: "#/components/responses/ValidationProblem" }
+        "404": { $ref: "#/components/responses/NotFoundProblem" }
+        "409": { $ref: "#/components/responses/ConflictProblem" }
+
+  /api/v1/vaults/{vault_id}/focus-sessions/{session_id}:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - name: session_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getFocusSession
+      tags: [focus]
+      summary: Read one focus session.
+      responses:
+        "200":
+          description: The session.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FocusSession" }
+        "404": { $ref: "#/components/responses/NotFoundProblem" }
+    patch:
+      operationId: updateFocusSession
+      tags: [focus]
+      summary: Pause, resume, or finish the session.
+      description: >-
+        Pass `action` (`pause`/`resume`) or `result`
+        (`completed`/`cancelled`/`interrupted`, optionally with `notes`)
+        — not both. Invalid transitions (pausing a paused or finished
+        session) are 409 conflicts.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                action: { type: string, enum: [pause, resume] }
+                result:
+                  type: string
+                  enum: [completed, cancelled, interrupted]
+                notes: { type: string, maxLength: 10000 }
+      responses:
+        "200":
+          description: The updated session.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FocusSession" }
+        "400": { $ref: "#/components/responses/ValidationProblem" }
+        "404": { $ref: "#/components/responses/NotFoundProblem" }
+        "409": { $ref: "#/components/responses/ConflictProblem" }
         "412": { $ref: "#/components/responses/VersionConflictProblem" }
 
   /api/v1/vaults/{vault_id}/agenda:
@@ -1019,6 +1133,67 @@ components:
         trigger_at_utc: { type: string, format: date-time }
         offset_minutes: { type: integer, minimum: 0 }
         channel: { type: string, enum: [notification], default: notification }
+
+    FocusSession:
+      type: object
+      required:
+        [id, task_id, occurrence_id, device_id, planned_focus_seconds,
+         planned_break_seconds, phase, started_at, ended_at,
+         active_seconds, paused_seconds, last_transition_at,
+         interruption_count, result, notes, created_at, updated_at,
+         version]
+      properties:
+        id: { type: string, format: uuid }
+        task_id: { type: [string, "null"], format: uuid }
+        occurrence_id: { type: [string, "null"], format: uuid }
+        device_id: { type: [string, "null"] }
+        planned_focus_seconds: { type: integer, minimum: 60 }
+        planned_break_seconds: { type: integer, minimum: 0 }
+        phase:
+          type: string
+          enum: [running, paused, finished]
+        started_at: { type: string, format: date-time }
+        ended_at: { type: [string, "null"], format: date-time }
+        active_seconds:
+          type: integer
+          description: >-
+            Accumulated at phase transitions only; a running phase's
+            live portion is not included, so responses are
+            deterministic. Clients compute the live display from
+            `phase`, `last_transition_at`, and their own clock.
+        paused_seconds: { type: integer }
+        last_transition_at: { type: string, format: date-time }
+        interruption_count:
+          type: integer
+          description: Number of pauses.
+        result:
+          type: [string, "null"]
+          enum: [completed, cancelled, interrupted, null]
+        notes: { type: string, maxLength: 10000 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        version: { type: integer, minimum: 1 }
+
+    FocusSessionCreate:
+      type: object
+      required: [planned_focus_seconds]
+      description: >-
+        At most one of `task_id`/`occurrence_id` may be set; both may be
+        absent for a free-standing session.
+      properties:
+        task_id: { type: string, format: uuid }
+        occurrence_id: { type: string, format: uuid }
+        device_id: { type: string, maxLength: 100 }
+        planned_focus_seconds:
+          type: integer
+          minimum: 60
+          maximum: 14400
+        planned_break_seconds:
+          type: integer
+          minimum: 0
+          maximum: 3600
+          default: 0
+        notes: { type: string, maxLength: 10000 }
 
     AgendaReport:
       type: object

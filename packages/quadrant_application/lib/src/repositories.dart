@@ -85,6 +85,23 @@ abstract interface class ReminderRepository {
   void delete(String id);
 }
 
+/// Persistence interface for focus sessions.
+abstract interface class FocusSessionRepository {
+  FocusSession? findById(String id);
+
+  /// The single unfinished session, if any (the invariant "at most one
+  /// active session per vault" is enforced by the service).
+  FocusSession? findActive();
+
+  /// Sessions newest-started first, then id; optionally only (un)finished
+  /// or only those referencing a task.
+  List<FocusSession> list({bool? active, String? taskId});
+
+  void insert(FocusSession session);
+
+  void update(FocusSession session);
+}
+
 /// Persistence interface for tags.
 abstract interface class TagRepository {
   Tag? findById(String id);
