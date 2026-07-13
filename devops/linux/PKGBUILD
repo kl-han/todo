@@ -1,0 +1,35 @@
+# PKGBUILD template for Arch Linux. Build from a released tag on a
+# machine with the Flutter SDK; adjust pkgver/sha256 per release.
+pkgname=quadrant-todo
+pkgver=0.9.0
+pkgrel=1
+pkgdesc="Eisenhower-matrix task manager (Flutter, local-first with optional self-hosted server)"
+arch=('x86_64')
+url="https://github.com/kl-han/todo"
+license=('MIT')
+depends=('gtk3' 'sqlite')
+makedepends=('flutter' 'clang' 'cmake' 'ninja')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+  cd "todo-$pkgver/apps/quadrant_todo"
+  flutter create --platforms=linux .
+  flutter build linux --release
+  cd "../../"
+  dart compile exe server/bin/quadrant_server.dart -o quadrant_server
+}
+
+package() {
+  cd "todo-$pkgver"
+  install -dm755 "$pkgdir/opt/$pkgname"
+  cp -r apps/quadrant_todo/build/linux/x64/release/bundle/* \
+    "$pkgdir/opt/$pkgname/"
+  install -dm755 "$pkgdir/usr/bin"
+  ln -s "/opt/$pkgname/quadrant_todo" "$pkgdir/usr/bin/quadrant_todo"
+  install -Dm755 quadrant_server "$pkgdir/usr/bin/quadrant_server"
+  install -Dm644 devops/linux/quadrant-todo.desktop \
+    "$pkgdir/usr/share/applications/quadrant-todo.desktop"
+  install -Dm644 devops/server/systemd/quadrant-server.service \
+    "$pkgdir/usr/lib/systemd/user/quadrant-server.service"
+}
