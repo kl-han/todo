@@ -1,6 +1,6 @@
 name: quadrant_store
 description: SQLite persistence (database, migrations, repositories) for Quadrant Todo.
-version: 1.3.0
+version: 1.4.0
 publish_to: none
 resolution: workspace
 
@@ -9,6 +9,7 @@ environment:
 
 dependencies:
   quadrant_application: ^1.0.0
+  quadrant_usage: ^1.4.0
   quadrant_domain: ^1.0.0
   # 2.x loads the system libsqlite3; 3.x pulls a prebuilt native asset at
   # build time, which is unavailable in restricted environments.

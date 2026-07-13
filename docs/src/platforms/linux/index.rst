@@ -7,4 +7,5 @@ Linux
    sway-wayland
    keyboard-navigation
    local-backend-lifecycle
+   usage-collection
    engineering-decisions

@@ -11,6 +11,7 @@ REST API
    recurrence-api
    reminder-api
    focus-api
+   agent-api
    quadrant-api
    tag-api
    concurrency
