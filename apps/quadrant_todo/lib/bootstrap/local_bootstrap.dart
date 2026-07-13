@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:quadrant_api_client/quadrant_api_client.dart';
 import 'package:quadrant_backend_host/quadrant_backend_host.dart';
 
@@ -8,7 +10,8 @@ import 'package:quadrant_backend_host/quadrant_backend_host.dart';
 /// uses on resume — iOS may have frozen or killed the backend isolate along
 /// with the rest of the process.
 Future<BackendConnection> bootstrapLocalBackend({String? databasePath}) async {
-  final backend = await EmbeddedBackend.start(databasePath: databasePath);
+  final path = databasePath ?? defaultLocalDatabasePath();
+  final backend = await EmbeddedBackend.start(databasePath: path);
   final client = QuadrantApiClient(
     baseUrl: backend.baseUrl,
     authorization: backend.authorization,
@@ -22,7 +25,21 @@ Future<BackendConnection> bootstrapLocalBackend({String? databasePath}) async {
     restart: () async {
       client.close();
       await backend.stop();
-      return bootstrapLocalBackend(databasePath: databasePath);
+      return bootstrapLocalBackend(databasePath: path);
     },
   );
+}
+
+/// Platform-appropriate vault location for local mode.
+///
+/// * Linux: `$XDG_DATA_HOME/quadrant-todo/default.sqlite3`
+///   (or `~/.local/share/...`).
+/// * iOS/macOS: the app's Documents-adjacent HOME sandbox; v0.4 refines
+///   this to the proper application-support directory.
+String? defaultLocalDatabasePath() {
+  final env = Platform.environment;
+  final base = env['XDG_DATA_HOME'] ??
+      (env['HOME'] == null ? null : '${env['HOME']}/.local/share');
+  if (base == null) return null; // in-memory fallback (tests only)
+  return '$base/quadrant-todo/default.sqlite3';
 }
