@@ -8,6 +8,13 @@ personal team suffices for personal-device installs).
 
 .. code-block:: bash
 
+   make dist-ios
+   make dist-ios FLUTTER="fvm flutter"   # when using FVM
+
+Equivalent explicit commands:
+
+.. code-block:: bash
+
    cd apps/quadrant_todo
    flutter create --platforms=ios .     # once, generates ios/ runner
    open ios/Runner.xcworkspace          # set Team + bundle identifier
