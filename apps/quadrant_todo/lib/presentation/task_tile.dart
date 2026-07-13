@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:quadrant_api_client/quadrant_api_client.dart';
 
 import '../state/app_state.dart';
+import 'task_editor.dart';
 
 /// Shared focusable task row. Activation (tap, Enter, or Space while
 /// focused) toggles completion — the same behavior on every platform.
+/// The trailing edit affordance (or long press) opens the task editor.
 class TaskTile extends StatelessWidget {
   const TaskTile({super.key, required this.task, required this.state});
 
@@ -30,7 +32,14 @@ class TaskTile extends StatelessWidget {
               : null,
         ),
         subtitle: task.notes.isEmpty ? null : Text(task.notes, maxLines: 1),
+        trailing: IconButton(
+          key: ValueKey('edit-${task.id}'),
+          icon: const Icon(Icons.edit_outlined),
+          tooltip: 'Edit task',
+          onPressed: () => showTaskEditor(context, state: state, task: task),
+        ),
         onTap: () => state.toggleTask(task),
+        onLongPress: () => showTaskEditor(context, state: state, task: task),
         // Enter on the focused tile activates onTap via ActivateIntent,
         // which is exactly the Linux "Enter toggles completion" behavior.
       ),

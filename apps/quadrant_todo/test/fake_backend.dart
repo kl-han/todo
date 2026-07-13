@@ -18,6 +18,9 @@ class FakeBackend {
   /// explicit offline/error state.
   bool unreachable = false;
 
+  /// Body of the most recent task PATCH, for editor assertions.
+  Map<String, Object?>? lastPatch;
+
   BackendConnection connection() => BackendConnection(
         mode: BackendMode.local,
         client: QuadrantApiClient(
@@ -109,12 +112,38 @@ class FakeBackend {
     if (taskMatch != null && method == 'PATCH') {
       final task = tasks.firstWhere((t) => t['id'] == taskMatch.group(1));
       final body = jsonDecode(request.body) as Map<String, Object?>;
+      lastPatch = body;
+      for (final field in ['title', 'notes', 'is_urgent', 'is_important']) {
+        if (body.containsKey(field)) task[field] = body[field];
+      }
       if (body case {'status': final String status}) {
         task['status'] = status;
         task['completed_at'] =
             status == 'completed' ? DateTime.now().toIso8601String() : null;
       }
+      task['quadrant'] = _quadrant(
+        task['is_urgent'] as bool,
+        task['is_important'] as bool,
+      );
       task['version'] = (task['version'] as int) + 1;
+      return _ok(task);
+    }
+    if (taskMatch != null && method == 'DELETE') {
+      final task = tasks.firstWhere((t) => t['id'] == taskMatch.group(1));
+      task['deleted_at'] = DateTime.now().toIso8601String();
+      task['version'] = (task['version'] as int) + 1;
+      return http.Response('', 204);
+    }
+    final tagAssign = RegExp(
+            r'^/api/v1/vaults/default/tasks/([^/]+)/tags/([^/]+)$')
+        .firstMatch(path);
+    if (tagAssign != null) {
+      final task = tasks.firstWhere((t) => t['id'] == tagAssign.group(1));
+      final ids = {...(task['tag_ids'] as List<Object?>).cast<String>()};
+      method == 'PUT'
+          ? ids.add(tagAssign.group(2)!)
+          : ids.remove(tagAssign.group(2));
+      task['tag_ids'] = ids.toList();
       return _ok(task);
     }
     if (path == '/api/v1/vaults/default/tags' && method == 'GET') {

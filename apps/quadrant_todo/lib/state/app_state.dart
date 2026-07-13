@@ -86,6 +86,14 @@ class AppState extends ChangeNotifier {
         ));
   }
 
+  Future<void> assignTag(TaskDto task, String tagId) async {
+    await _mutate(() => _client.assignTag(task.id, tagId));
+  }
+
+  Future<void> removeTag(TaskDto task, String tagId) async {
+    await _mutate(() => _client.removeTagFromTask(task.id, tagId));
+  }
+
   Future<void> deleteTask(TaskDto task) async {
     await _mutate(
         () => _client.deleteTask(task.id, ifMatchVersion: task.version));
