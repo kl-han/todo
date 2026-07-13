@@ -173,6 +173,45 @@ void runBackendContractSuite(
       expect(fetched.title, 'delete me');
     });
 
+    test('stale If-Match on DELETE is a 412, and the task survives',
+        () async {
+      final task = await client.createTask(title: 'delete conflict');
+      await client.updateTask(task.id, notes: 'moved on');
+
+      await expectLater(
+        client.deleteTask(task.id, ifMatchVersion: task.version),
+        throwsA(_problem(412, 'problems/version-conflict')),
+      );
+      final alive = await client.getTask(task.id);
+      expect(alive.deletedAt, isNull);
+    });
+
+    test('unknown request fields are ignored, not rejected (additive '
+        'compatibility)', () async {
+      final response = await http.post(
+        harness.baseUrl.resolve('/api/v1/vaults/default/tasks'),
+        headers: {
+          'authorization': harness.authorization,
+          'content-type': 'application/json',
+        },
+        body: '{"title":"tolerant","some_future_field":123}',
+      );
+      expect(response.statusCode, 201);
+    });
+
+    test('a wrong bearer token yields a 401 problem, not a hang or 500',
+        () async {
+      final response = await http.get(
+        harness.baseUrl.resolve('/api/v1/vaults/default/tasks'),
+        headers: {'authorization': 'Bearer definitely-wrong'},
+      );
+      expect(response.statusCode, 401);
+      expect(
+        response.headers['content-type'],
+        contains('application/problem+json'),
+      );
+    });
+
     test('validation failures are 400 validation problems', () async {
       await expectLater(
         client.createTask(title: '   '),

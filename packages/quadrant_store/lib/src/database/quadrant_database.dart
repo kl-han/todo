@@ -23,6 +23,70 @@ class QuadrantDatabase {
     return QuadrantDatabase._(db, path).._configure();
   }
 
+  /// Opens a vault, recovering from an unreadable/corrupt file by moving
+  /// it (and its WAL/SHM siblings) aside to `<path>.corrupt-<timestamp>`
+  /// and starting fresh. The damaged data is preserved for manual triage;
+  /// the app must always be able to boot. Used by the embedded backend —
+  /// the standalone server stays strict so an operator notices.
+  ///
+  /// A database that is *newer* than this build is not corruption and is
+  /// still refused (see [migrate]).
+  static QuadrantDatabase openWithRecovery(
+    String path, {
+    void Function(String movedTo)? onCorruptMovedAside,
+  }) {
+    try {
+      final database = open(path);
+      // Surface latent page-level corruption now, not mid-session.
+      if (!database.integrityOk()) {
+        database.close();
+        throw const FormatException('integrity_check failed');
+      }
+      return database;
+    } on Object catch (error) {
+      if (error is StateError) rethrow; // newer-schema refusal is not corruption
+      final suffix =
+          '.corrupt-${DateTime.now().toUtc().millisecondsSinceEpoch}';
+      final movedTo = '$path$suffix';
+      for (final candidate in [path, '$path-wal', '$path-shm']) {
+        final file = File(candidate);
+        if (file.existsSync()) {
+          file.renameSync(candidate == path ? movedTo : '$candidate$suffix');
+        }
+      }
+      onCorruptMovedAside?.call(movedTo);
+      return open(path);
+    }
+  }
+
+  /// SQLite's own page-level check; true when the database is sound.
+  bool integrityOk() {
+    final result = db.select('PRAGMA integrity_check');
+    return result.length == 1 && result.first.columnAt(0) == 'ok';
+  }
+
+  /// Verifies a snapshot produced by [backupTo]: the file opens, passes
+  /// integrity_check, and is not from a newer build. Returns null when
+  /// sound, or a human-readable reason.
+  static String? verifySnapshot(String path) {
+    if (!File(path).existsSync()) return 'Snapshot does not exist.';
+    try {
+      final database = open(path);
+      try {
+        if (!database.integrityOk()) {
+          return 'Snapshot fails SQLite integrity_check.';
+        }
+        return null;
+      } finally {
+        database.close();
+      }
+    } on StateError catch (error) {
+      return error.message;
+    } on Object catch (error) {
+      return 'Snapshot cannot be opened: $error';
+    }
+  }
+
   static QuadrantDatabase inMemory() =>
       QuadrantDatabase._(sqlite3.openInMemory(), null).._configure();
 

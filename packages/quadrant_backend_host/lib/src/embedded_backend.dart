@@ -88,10 +88,11 @@ const String embeddedVaultId = 'default';
 
 Future<void> _backendMain(_Bootstrap bootstrap) async {
   // The backend isolate owns the database; the UI isolate never opens
-  // SQLite directly.
+  // SQLite directly. A corrupt local vault is moved aside and recreated —
+  // the app must always boot — while the damaged file survives for triage.
   final database = bootstrap.databasePath == null
       ? QuadrantDatabase.inMemory()
-      : QuadrantDatabase.open(bootstrap.databasePath!);
+      : QuadrantDatabase.openWithRecovery(bootstrap.databasePath!);
   final services = AppServices(
     taskRepository: SqliteTaskRepository(database),
     tagRepository: SqliteTagRepository(database),

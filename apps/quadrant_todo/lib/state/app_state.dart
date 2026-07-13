@@ -39,7 +39,9 @@ class AppState extends ChangeNotifier {
       error = 'Backend unreachable.';
       await _recover();
     } on ProblemDetailsException catch (problem) {
-      error = problem.detail ?? problem.title;
+      error = problem.status == 401
+          ? 'Authentication failed — check the backend settings.'
+          : problem.detail ?? problem.title;
     } finally {
       loading = false;
       notifyListeners();
@@ -142,7 +144,11 @@ class AppState extends ChangeNotifier {
     } on ProblemDetailsException catch (problem) {
       // 412: stale version. The refresh below fetches current state; the
       // user re-applies their change deliberately.
-      error = problem.status == 412 ? null : problem.detail ?? problem.title;
+      error = switch (problem.status) {
+        412 => null,
+        401 => 'Authentication failed — check the backend settings.',
+        _ => problem.detail ?? problem.title,
+      };
     } on ApiUnavailableException {
       error = 'Backend unreachable.';
       await _recover();

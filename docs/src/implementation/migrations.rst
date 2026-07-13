@@ -20,3 +20,20 @@ Rules
   open rather than risk corruption (downgrade protection).
 * v1.0 requires migration tests from **every** released schema version to
   current; the store test suite grows one fixture per release.
+
+Corruption recovery
+-------------------
+
+.. versionadded:: 0.8
+
+The embedded backend opens its vault with
+``QuadrantDatabase.openWithRecovery``: an unreadable file, or one failing
+SQLite's ``integrity_check``, is moved aside to
+``default.sqlite3.corrupt-<timestamp>`` (WAL/SHM included) and a fresh
+vault is created — the app must always boot, and the damaged file
+survives for manual triage. Two things are deliberately *not* recovered:
+
+* a **newer-schema** database (that is a downgrade, not corruption; the
+  refusal stands), and
+* the **standalone server's** vaults, which stay strict-open so an
+  operator notices and restores from a verified backup instead.
