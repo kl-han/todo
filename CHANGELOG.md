@@ -2,7 +2,21 @@
 
 All notable changes; one entry per squash-merged milestone.
 
-## v0.9.0 — Release candidate (unreleased)
+## v1.0.0 — Stable release
+
+- **v1 REST contract frozen**: additive-only from here; upgrade and
+  rollback policy documented (`docs/src/api/compatibility.rst`,
+  `docs/src/devops/release-process.rst`).
+- Released-schema migration fixtures: a frozen snapshot of every shipped
+  schema (currently v1) must migrate to current with data intact; a guard
+  test fails when a release forgets to add its fixture.
+- All packages, the app, and the OpenAPI document versioned 1.0.0.
+- README rewritten with iOS/Linux/server installation instructions (the
+  architecture text it previously held lives in `docs/`).
+- Upgrade policy: newer-schema vaults refuse to open under older builds;
+  restore the pre-upgrade verified snapshot to roll back.
+
+## v0.9.0 — Release candidate
 
 - Completed the documentation set (agents, devops, references); no stub
   pages remain.
