@@ -110,6 +110,19 @@ class AppState extends ChangeNotifier {
   Future<List<TaskDto>> tagTasks(String tagId, {String status = 'open'}) =>
       _client.tagTasks(tagId, status: status);
 
+  BackendMode get mode => _connection.mode;
+
+  /// Applies a new backend connection (mode switch from the settings
+  /// sheet). The old backend is shut down; the new dataset replaces the
+  /// visible one entirely — nothing is merged.
+  Future<void> switchConnection(BackendConnection next) async {
+    final old = _connection;
+    _connection = next;
+    old.client.close();
+    await old.shutdown?.call();
+    await refresh();
+  }
+
   /// App resume hook: verify the embedded backend survived suspension and
   /// restart it when it did not (see backend-lifecycle docs).
   Future<void> ensureBackendHealthy() async {

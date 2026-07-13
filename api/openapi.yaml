@@ -44,6 +44,29 @@ paths:
               schema:
                 $ref: "#/components/schemas/Health"
 
+  /api/v1/capabilities:
+    get:
+      operationId: getCapabilities
+      tags: [system]
+      summary: API version, schema version, and supported features.
+      description: >-
+        Remote-mode clients call this after connecting to verify the
+        server speaks a compatible contract before issuing data requests.
+      responses:
+        "200":
+          description: Capability report.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [api_version, schema_version, features]
+                properties:
+                  api_version: { type: string, enum: [v1] }
+                  schema_version: { type: integer }
+                  features:
+                    type: array
+                    items: { type: string }
+
   /api/v1/vaults:
     get:
       operationId: listVaults

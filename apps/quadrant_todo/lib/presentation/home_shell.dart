@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:quadrant_backend_host/quadrant_backend_host.dart';
 
+import '../bootstrap/backend_selector.dart';
 import '../platform/keyboard.dart';
 import '../state/app_state.dart';
 import 'matrix_screen.dart';
+import 'settings_screen.dart';
 import 'tags_screen.dart';
 import 'tasks_screen.dart';
 
@@ -10,9 +13,16 @@ import 'tasks_screen.dart';
 /// move focus; Enter activates the focused tile. On app resume the
 /// embedded backend's health is re-verified.
 class HomeShell extends StatefulWidget {
-  const HomeShell({super.key, required this.state});
+  const HomeShell({
+    super.key,
+    required this.state,
+    required this.settingsStore,
+    required this.credentialStore,
+  });
 
   final AppState state;
+  final SettingsStore settingsStore;
+  final CredentialStore credentialStore;
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -76,6 +86,28 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
                     icon: const Icon(Icons.refresh),
                     tooltip: 'Refresh',
                     onPressed: widget.state.refresh,
+                  ),
+                  IconButton(
+                    key: const ValueKey('open-settings'),
+                    icon: const Icon(Icons.settings_outlined),
+                    tooltip: 'Backend settings',
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => SettingsScreen(
+                          state: widget.state,
+                          settingsStore: widget.settingsStore,
+                          credentialStore: widget.credentialStore,
+                          applySettings: () async {
+                            final connection = await bootstrapFromSettings(
+                              settingsStore: widget.settingsStore,
+                              credentialStore: widget.credentialStore,
+                            );
+                            await widget.state
+                                .switchConnection(connection);
+                          },
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),

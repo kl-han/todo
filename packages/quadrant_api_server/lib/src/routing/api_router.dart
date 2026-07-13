@@ -16,6 +16,23 @@ import '../problem.dart';
 Handler buildApiHandler(ApiServerConfig config) {
   final router = Router(notFoundHandler: notFoundProblem)
     ..get('/api/v1/health', healthHandler(config))
+    ..get('/api/v1/capabilities', (Request request) {
+      return Response.ok(
+        jsonEncode({
+          'api_version': 'v1',
+          'schema_version': config.schemaVersion,
+          'features': [
+            'tasks',
+            'tags',
+            'quadrants',
+            'vaults',
+            'etag-concurrency',
+            'soft-delete-restore',
+          ],
+        }),
+        headers: {'content-type': 'application/json'},
+      );
+    })
     ..get('/api/v1/vaults', (Request request) {
       return Response.ok(
         jsonEncode({

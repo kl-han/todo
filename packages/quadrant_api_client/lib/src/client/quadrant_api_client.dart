@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../dto/capabilities.dart';
 import '../dto/health_report.dart';
 import '../dto/tag_dto.dart';
 import '../dto/task_dto.dart';
@@ -50,6 +51,10 @@ class QuadrantApiClient {
     }
     throw ApiUnavailableException(baseUrl, lastError);
   }
+
+  /// GET /api/v1/capabilities — version and feature negotiation.
+  Future<Capabilities> capabilities() async =>
+      Capabilities.fromJson(await _request('GET', '/api/v1/capabilities'));
 
   /// GET /api/v1/vaults — accessible vault names.
   Future<List<String>> listVaults() async {
