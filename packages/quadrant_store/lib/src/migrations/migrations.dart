@@ -117,6 +117,33 @@ const List<String> migrations = [
     version              INTEGER NOT NULL DEFAULT 1
   );
   ''',
+
+  // v3 -> v4: focus sessions (v1.3). Durations accumulate at phase
+  // transitions; the live portion of the current phase is derived from
+  // last_transition_at by clients, never stored.
+  '''
+  CREATE TABLE focus_sessions (
+    id                    TEXT PRIMARY KEY,
+    task_id               TEXT REFERENCES tasks(id) ON DELETE SET NULL,
+    occurrence_id         TEXT
+      REFERENCES task_occurrences(id) ON DELETE SET NULL,
+    device_id             TEXT,
+    planned_focus_seconds INTEGER NOT NULL,
+    planned_break_seconds INTEGER NOT NULL DEFAULT 0,
+    phase                 TEXT NOT NULL DEFAULT 'running',
+    started_at            TEXT NOT NULL,
+    ended_at              TEXT,
+    active_seconds        INTEGER NOT NULL DEFAULT 0,
+    paused_seconds        INTEGER NOT NULL DEFAULT 0,
+    last_transition_at    TEXT NOT NULL,
+    interruption_count    INTEGER NOT NULL DEFAULT 0,
+    result                TEXT,
+    notes                 TEXT NOT NULL DEFAULT '',
+    created_at            TEXT NOT NULL,
+    updated_at            TEXT NOT NULL,
+    version               INTEGER NOT NULL DEFAULT 1
+  );
+  ''',
 ];
 
 /// Current schema version; reported by `/api/v1/health`.

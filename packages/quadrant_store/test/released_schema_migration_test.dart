@@ -293,6 +293,151 @@ final List<SchemaFixture> releasedSchemas = [
         db.select('SELECT trigger_type, state FROM reminders').first.values,
         ['relative_due', 'pending'],
       );
+      // Migration 4 creates the focus table empty.
+      expect(
+        db.select('SELECT COUNT(*) c FROM focus_sessions').first['c'],
+        0,
+      );
+    },
+  ),
+  (
+    version: 4,
+    // Schema v4 exactly as first released in v1.3.0 (focus sessions).
+    // Prior tables elided: this fixture seeds only the new table, so the
+    // v3 DDL portion is reused verbatim from the fixture above at seed
+    // time via raw SQL (kept minimal on purpose).
+    ddl: '''
+      CREATE TABLE recurrence_rules (
+        id         TEXT PRIMARY KEY,
+        dtstart    TEXT NOT NULL,
+        rrule      TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE tasks (
+        id           TEXT PRIMARY KEY,
+        title        TEXT NOT NULL,
+        notes        TEXT NOT NULL DEFAULT '',
+        is_urgent    INTEGER NOT NULL DEFAULT 0,
+        is_important INTEGER NOT NULL DEFAULT 0,
+        completed_at TEXT,
+        created_at   TEXT NOT NULL,
+        updated_at   TEXT NOT NULL,
+        deleted_at   TEXT,
+        version      INTEGER NOT NULL DEFAULT 1,
+        start_kind        TEXT NOT NULL DEFAULT 'none',
+        start_date        TEXT,
+        start_at_utc      TEXT,
+        due_kind          TEXT NOT NULL DEFAULT 'none',
+        due_date          TEXT,
+        due_at_utc        TEXT,
+        timezone_id       TEXT,
+        estimated_minutes INTEGER,
+        recurrence_rule_id TEXT REFERENCES recurrence_rules(id)
+      );
+      CREATE TABLE tags (
+        id         TEXT PRIMARY KEY,
+        name       TEXT NOT NULL,
+        color      TEXT NOT NULL DEFAULT '#808080',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT,
+        version    INTEGER NOT NULL DEFAULT 1
+      );
+      CREATE UNIQUE INDEX tags_active_name
+        ON tags(name) WHERE deleted_at IS NULL;
+      CREATE TABLE task_tags (
+        task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+        tag_id  TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+        PRIMARY KEY (task_id, tag_id)
+      );
+      CREATE INDEX tasks_matrix_order
+        ON tasks(is_urgent DESC, is_important DESC, updated_at ASC, id ASC)
+        WHERE deleted_at IS NULL;
+      CREATE TABLE task_occurrences (
+        id                 TEXT PRIMARY KEY,
+        task_id            TEXT NOT NULL REFERENCES tasks(id)
+          ON DELETE CASCADE,
+        recurrence_rule_id TEXT NOT NULL
+          REFERENCES recurrence_rules(id) ON DELETE CASCADE,
+        original_date      TEXT NOT NULL,
+        kind               TEXT NOT NULL,
+        occurrence_date    TEXT,
+        occurrence_at_utc  TEXT,
+        status             TEXT NOT NULL DEFAULT 'open',
+        completed_at       TEXT,
+        created_at         TEXT NOT NULL,
+        updated_at         TEXT NOT NULL,
+        version            INTEGER NOT NULL DEFAULT 1,
+        UNIQUE (recurrence_rule_id, original_date)
+      );
+      CREATE TABLE recurrence_exceptions (
+        recurrence_rule_id TEXT NOT NULL
+          REFERENCES recurrence_rules(id) ON DELETE CASCADE,
+        original_date      TEXT NOT NULL,
+        exception_type     TEXT NOT NULL,
+        replacement_date   TEXT,
+        replacement_at_utc TEXT,
+        created_at         TEXT NOT NULL,
+        PRIMARY KEY (recurrence_rule_id, original_date)
+      );
+      CREATE TABLE reminders (
+        id                   TEXT PRIMARY KEY,
+        task_id              TEXT REFERENCES tasks(id) ON DELETE CASCADE,
+        occurrence_id        TEXT
+          REFERENCES task_occurrences(id) ON DELETE CASCADE,
+        trigger_type         TEXT NOT NULL,
+        trigger_at_utc       TEXT,
+        offset_minutes       INTEGER,
+        channel              TEXT NOT NULL DEFAULT 'notification',
+        state                TEXT NOT NULL DEFAULT 'pending',
+        platform_schedule_id TEXT,
+        created_at           TEXT NOT NULL,
+        updated_at           TEXT NOT NULL,
+        version              INTEGER NOT NULL DEFAULT 1
+      );
+      CREATE TABLE focus_sessions (
+        id                    TEXT PRIMARY KEY,
+        task_id               TEXT REFERENCES tasks(id) ON DELETE SET NULL,
+        occurrence_id         TEXT
+          REFERENCES task_occurrences(id) ON DELETE SET NULL,
+        device_id             TEXT,
+        planned_focus_seconds INTEGER NOT NULL,
+        planned_break_seconds INTEGER NOT NULL DEFAULT 0,
+        phase                 TEXT NOT NULL DEFAULT 'running',
+        started_at            TEXT NOT NULL,
+        ended_at              TEXT,
+        active_seconds        INTEGER NOT NULL DEFAULT 0,
+        paused_seconds        INTEGER NOT NULL DEFAULT 0,
+        last_transition_at    TEXT NOT NULL,
+        interruption_count    INTEGER NOT NULL DEFAULT 0,
+        result                TEXT,
+        notes                 TEXT NOT NULL DEFAULT '',
+        created_at            TEXT NOT NULL,
+        updated_at            TEXT NOT NULL,
+        version               INTEGER NOT NULL DEFAULT 1
+      );
+    ''',
+    seed: (db) {
+      db.execute(
+        'INSERT INTO focus_sessions (id, planned_focus_seconds, phase, '
+        'started_at, ended_at, active_seconds, last_transition_at, result, '
+        'created_at, updated_at) VALUES '
+        "('88888888-8888-4888-8888-888888888888', 1500, 'finished', "
+        "'2026-07-01T09:00:00.000000Z', '2026-07-01T09:25:00.000000Z', "
+        "1500, '2026-07-01T09:25:00.000000Z', 'completed', "
+        "'2026-07-01T09:00:00.000000Z', '2026-07-01T09:25:00.000000Z')",
+      );
+    },
+    verify: (db) {
+      expect(
+        db
+            .select(
+                'SELECT phase, result, active_seconds FROM focus_sessions')
+            .first
+            .values,
+        ['finished', 'completed', 1500],
+      );
     },
   ),
 ];

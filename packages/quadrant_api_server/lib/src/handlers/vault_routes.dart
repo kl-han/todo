@@ -286,6 +286,84 @@ void mountVaultRoutes(Router router, ApiServerConfig config) {
     return Response(204);
   });
 
+  // ---- Focus sessions ----
+
+  router.get('/api/v1/vaults/<vaultId>/focus-sessions', (Request request) {
+    final services = vault(request);
+    final params = request.url.queryParameters;
+    final rawActive = params['active'];
+    if (rawActive != null && rawActive != 'true' && rawActive != 'false') {
+      throw MalformedRequestError('active must be true or false.');
+    }
+    final sessions = services.focus.list(
+      active: rawActive == null ? null : rawActive == 'true',
+      taskId: params['task_id'],
+    );
+    return _json(200, {
+      'focus_sessions': [
+        for (final session in sessions) focusSessionToJson(session),
+      ],
+    });
+  });
+
+  router.post('/api/v1/vaults/<vaultId>/focus-sessions',
+      (Request request) async {
+    final services = vault(request);
+    final body = await readJsonObject(request);
+    final session = services.focus.start(
+      taskId: optional<String>(body, 'task_id'),
+      occurrenceId: optional<String>(body, 'occurrence_id'),
+      deviceId: optional<String>(body, 'device_id'),
+      plannedFocusSeconds: required_<int>(body, 'planned_focus_seconds'),
+      plannedBreakSeconds: optional<int>(body, 'planned_break_seconds') ?? 0,
+      notes: optional<String>(body, 'notes') ?? '',
+    );
+    return withEtag(
+        _json(201, focusSessionToJson(session)), session.version);
+  });
+
+  router.get('/api/v1/vaults/<vaultId>/focus-sessions/<sessionId>',
+      (Request request) {
+    final services = vault(request);
+    final session = services.focus.get(request.params['sessionId']!);
+    return withEtag(
+        _json(200, focusSessionToJson(session)), session.version);
+  });
+
+  router.patch('/api/v1/vaults/<vaultId>/focus-sessions/<sessionId>',
+      (Request request) async {
+    final services = vault(request);
+    final body = await readJsonObject(request);
+    final id = request.params['sessionId']!;
+    final expectedVersion = expectedVersionFrom(request);
+    final action = optional<String>(body, 'action');
+    final resultName = optional<String>(body, 'result');
+    if ((action == null) == (resultName == null)) {
+      throw MalformedRequestError(
+        'Patch exactly one of action (pause/resume) and result.',
+      );
+    }
+    final FocusSession session;
+    if (action != null) {
+      session = switch (action) {
+        'pause' =>
+          services.focus.pause(id, expectedVersion: expectedVersion),
+        'resume' =>
+          services.focus.resume(id, expectedVersion: expectedVersion),
+        _ => throw MalformedRequestError('Unknown action "$action".'),
+      };
+    } else {
+      session = services.focus.finish(
+        id,
+        _parseFocusResult(resultName!),
+        notes: optional<String>(body, 'notes'),
+        expectedVersion: expectedVersion,
+      );
+    }
+    return withEtag(
+        _json(200, focusSessionToJson(session)), session.version);
+  });
+
   // ---- Agenda read model ----
 
   router.get('/api/v1/vaults/<vaultId>/agenda', (Request request) {
@@ -471,6 +549,14 @@ TaskSort _parseSort(String value) {
     return TaskSort.fromWire(value);
   } on ArgumentError {
     throw MalformedRequestError('Unknown sort "$value".');
+  }
+}
+
+FocusResult _parseFocusResult(String value) {
+  try {
+    return FocusResult.fromWire(value);
+  } on ArgumentError {
+    throw MalformedRequestError('Unknown focus result "$value".');
   }
 }
 

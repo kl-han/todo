@@ -67,6 +67,11 @@ Schema version 3 (third migration) adds ``recurrence_rules``,
 ``tasks.recurrence_rule_id``; see the migration source and
 :doc:`/reference/database-reference` for the exact columns.
 
+.. versionchanged:: 1.3
+
+Schema version 4 (fourth migration) adds ``focus_sessions``; see the
+migration source and :doc:`/reference/database-reference`.
+
 Notes:
 
 * There is **no** stored quadrant or status column — both derive from

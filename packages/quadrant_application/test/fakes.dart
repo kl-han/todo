@@ -143,3 +143,38 @@ class InMemoryReminderRepository implements ReminderRepository {
   @override
   void delete(String id) => reminders.remove(id);
 }
+
+class InMemoryFocusSessionRepository implements FocusSessionRepository {
+  final Map<String, FocusSession> _sessions = {};
+
+  @override
+  FocusSession? findById(String id) => _sessions[id];
+
+  @override
+  FocusSession? findActive() {
+    for (final session in _sessions.values) {
+      if (session.isActive) return session;
+    }
+    return null;
+  }
+
+  @override
+  List<FocusSession> list({bool? active, String? taskId}) {
+    final result = _sessions.values.where((session) {
+      if (active != null && session.isActive != active) return false;
+      if (taskId != null && session.taskId != taskId) return false;
+      return true;
+    }).toList()
+      ..sort((a, b) {
+        final byStart = b.startedAt.compareTo(a.startedAt);
+        return byStart != 0 ? byStart : a.id.compareTo(b.id);
+      });
+    return result;
+  }
+
+  @override
+  void insert(FocusSession session) => _sessions[session.id] = session;
+
+  @override
+  void update(FocusSession session) => _sessions[session.id] = session;
+}

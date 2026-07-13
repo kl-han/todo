@@ -2,6 +2,25 @@
 
 All notable changes; one entry per squash-merged milestone.
 
+## v1.3.0 — Focus sessions and the quadrant-agent
+
+- **Focus (Pomodoro) sessions** owned by the backend: `running → paused →
+  finished` with results (`completed|cancelled|interrupted`), one active
+  session per vault, durations accumulated at transitions with negative
+  clock deltas clamped — closing a GUI never cancels a session.
+- **`quadrant-agent`** (new package + executable): per-user, loopback-only
+  local backend host with a persistent 0600 credential, single-instance
+  file lock, corrupt-vault recovery, and a 30-second scheduler that
+  delivers due reminders via `notify-send` (idempotent, retrying) and
+  announces focus completion once.
+- `devops/agent/`: hardened systemd **user** unit (documented via
+  literalinclude, replacing the design sketch) and a Windows per-user
+  logon Task Scheduler script (explicitly not a Session-0 service).
+- Schema v4 (`focus_sessions`) with its frozen fixture; OpenAPI 1.3.0;
+  capabilities advertise `focus-sessions`; conformance suite extended
+  with the focus contract; agent test proves the "GUI closes during
+  Pomodoro" scenario end-to-end over real HTTP.
+
 ## v1.2.0 — Recurrence and reminders
 
 - **Recurring tasks** via RFC 5545-subset RRULEs (daily, weekdays, weekly

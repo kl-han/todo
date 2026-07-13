@@ -13,6 +13,7 @@ export 'src/recurrence/recurrence_record.dart';
 export 'src/repositories.dart';
 export 'src/services/agenda_service.dart';
 export 'src/services/app_services.dart';
+export 'src/services/focus_service.dart';
 export 'src/services/quadrant_service.dart';
 export 'src/services/recurrence_service.dart';
 export 'src/services/reminder_service.dart';

@@ -98,6 +98,7 @@ Future<void> _backendMain(_Bootstrap bootstrap) async {
     tagRepository: SqliteTagRepository(database),
     recurrenceRepository: SqliteRecurrenceRepository(database),
     reminderRepository: SqliteReminderRepository(database),
+    focusSessionRepository: SqliteFocusSessionRepository(database),
   );
 
   final handler = buildApiHandler(

@@ -22,7 +22,7 @@ jobs:
                      packages/quadrant_application \
                      packages/quadrant_store packages/quadrant_api_server \
                      packages/quadrant_api_client packages/quadrant_backend_host \
-                     packages/quadrant_conformance server; do
+                     packages/quadrant_conformance packages/quadrant_agent server; do
             if [ -d "$pkg/test" ]; then
               echo "== $pkg =="
               (cd "$pkg" && dart test --reporter=github)
