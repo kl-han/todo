@@ -18,4 +18,5 @@ the embedded loopback isolate or a standalone server.
    devops/index
    agents/index
    decisions/index
+   post-v1/index
    reference/index
