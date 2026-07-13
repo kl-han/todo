@@ -19,6 +19,18 @@ dependencies:
   quadrant_backend_host:
     path: ../../packages/quadrant_backend_host
 
+dependency_overrides:
+  quadrant_api_client:
+    path: ../../packages/quadrant_api_client
+  quadrant_api_server:
+    path: ../../packages/quadrant_api_server
+  quadrant_application:
+    path: ../../packages/quadrant_application
+  quadrant_domain:
+    path: ../../packages/quadrant_domain
+  quadrant_store:
+    path: ../../packages/quadrant_store
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
