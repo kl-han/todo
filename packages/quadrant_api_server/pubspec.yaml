@@ -1,6 +1,6 @@
 name: quadrant_api_server
 description: Shared REST handlers, routing, middleware, and DTOs for Quadrant Todo.
-version: 1.1.0
+version: 1.2.0
 publish_to: none
 resolution: workspace
 

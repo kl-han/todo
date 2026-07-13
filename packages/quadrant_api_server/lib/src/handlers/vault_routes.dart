@@ -125,6 +125,167 @@ void mountVaultRoutes(Router router, ApiServerConfig config) {
     return taskResponse(services, task);
   });
 
+  // ---- Recurrence ----
+
+  router.put('/api/v1/vaults/<vaultId>/tasks/<taskId>/recurrence',
+      (Request request) async {
+    final services = vault(request);
+    final body = await readJsonObject(request);
+    final taskId = request.params['taskId']!;
+    final rule = services.recurrence.setRecurrence(
+      taskId,
+      dtstart: _parseDate(required_<String>(body, 'dtstart'), 'dtstart')!,
+      rrule: required_<String>(body, 'rrule'),
+    );
+    return _json(200, recurrenceToJson(rule, taskId));
+  });
+
+  router.get('/api/v1/vaults/<vaultId>/tasks/<taskId>/recurrence',
+      (Request request) {
+    final services = vault(request);
+    final taskId = request.params['taskId']!;
+    final rule = services.recurrence.getRecurrence(taskId);
+    return _json(200, recurrenceToJson(rule, taskId));
+  });
+
+  router.delete('/api/v1/vaults/<vaultId>/tasks/<taskId>/recurrence',
+      (Request request) {
+    final services = vault(request);
+    services.recurrence.clearRecurrence(request.params['taskId']!);
+    return Response(204);
+  });
+
+  router.get('/api/v1/vaults/<vaultId>/occurrences', (Request request) {
+    final services = vault(request);
+    final params = request.url.queryParameters;
+    final occurrences = services.recurrence.occurrences(
+      from: _parseDateParam(params, 'from'),
+      to: _parseDateParam(params, 'to'),
+      status: _parseOccurrenceFilter(params['status'] ?? 'all'),
+      taskId: params['task_id'],
+    );
+    return _json(200, {
+      'occurrences': [
+        for (final occurrence in occurrences) occurrenceToJson(occurrence),
+      ],
+    });
+  });
+
+  router.get('/api/v1/vaults/<vaultId>/occurrences/<occurrenceId>',
+      (Request request) {
+    final services = vault(request);
+    final occurrence =
+        services.recurrence.getOccurrence(request.params['occurrenceId']!);
+    return withEtag(
+        _json(200, occurrenceToJson(occurrence)), occurrence.version);
+  });
+
+  router.patch('/api/v1/vaults/<vaultId>/occurrences/<occurrenceId>',
+      (Request request) async {
+    final services = vault(request);
+    final body = await readJsonObject(request);
+    final id = request.params['occurrenceId']!;
+    final expectedVersion = expectedVersionFrom(request);
+
+    final statusName = optional<String>(body, 'status');
+    final date = _parseDate(
+        optional<String>(body, 'occurrence_date'), 'occurrence_date');
+    final atUtc = _parseInstant(
+        optional<String>(body, 'occurrence_at_utc'), 'occurrence_at_utc');
+    if (statusName == null && date == null && atUtc == null) {
+      throw MalformedRequestError(
+        'Patch a status, an occurrence_date, or an occurrence_at_utc.',
+      );
+    }
+    if (statusName != null && (date != null || atUtc != null)) {
+      throw MalformedRequestError(
+        'Patch either the status or the schedule, not both.',
+      );
+    }
+
+    final occurrence = statusName != null
+        ? services.recurrence.setOccurrenceStatus(
+            id,
+            _parseOccurrenceStatus(statusName),
+            expectedVersion: expectedVersion,
+          )
+        : services.recurrence.rescheduleOccurrence(
+            id,
+            date: date,
+            atUtc: atUtc,
+            expectedVersion: expectedVersion,
+          );
+    return withEtag(
+        _json(200, occurrenceToJson(occurrence)), occurrence.version);
+  });
+
+  // ---- Reminders ----
+
+  router.get('/api/v1/vaults/<vaultId>/reminders', (Request request) {
+    final services = vault(request);
+    final params = request.url.queryParameters;
+    final reminders = services.reminders.list(
+      state: _parseReminderFilter(params['state'] ?? 'all'),
+      until: _parseInstant(params['until'], 'until'),
+    );
+    return _json(200, {
+      'reminders': [
+        for (final resolved in reminders) reminderToJson(resolved),
+      ],
+    });
+  });
+
+  router.post('/api/v1/vaults/<vaultId>/reminders', (Request request) async {
+    final services = vault(request);
+    final body = await readJsonObject(request);
+    final resolved = services.reminders.create(
+      taskId: optional<String>(body, 'task_id'),
+      occurrenceId: optional<String>(body, 'occurrence_id'),
+      trigger:
+          _parseReminderTrigger(required_<String>(body, 'trigger_type')),
+      triggerAtUtc: _parseInstant(
+          optional<String>(body, 'trigger_at_utc'), 'trigger_at_utc'),
+      offsetMinutes: optional<int>(body, 'offset_minutes'),
+      channel: optional<String>(body, 'channel') ?? 'notification',
+    );
+    return withEtag(
+        _json(201, reminderToJson(resolved)), resolved.reminder.version);
+  });
+
+  router.get('/api/v1/vaults/<vaultId>/reminders/<reminderId>',
+      (Request request) {
+    final services = vault(request);
+    final resolved = services.reminders.get(request.params['reminderId']!);
+    return withEtag(
+        _json(200, reminderToJson(resolved)), resolved.reminder.version);
+  });
+
+  router.patch('/api/v1/vaults/<vaultId>/reminders/<reminderId>',
+      (Request request) async {
+    final services = vault(request);
+    final body = await readJsonObject(request);
+    final stateName = optional<String>(body, 'state');
+    final resolved = services.reminders.update(
+      request.params['reminderId']!,
+      state: stateName == null ? null : _parseReminderState(stateName),
+      platformScheduleIdProvided: body.containsKey('platform_schedule_id'),
+      platformScheduleId: optional<String>(body, 'platform_schedule_id'),
+      expectedVersion: expectedVersionFrom(request),
+    );
+    return withEtag(
+        _json(200, reminderToJson(resolved)), resolved.reminder.version);
+  });
+
+  router.delete('/api/v1/vaults/<vaultId>/reminders/<reminderId>',
+      (Request request) {
+    final services = vault(request);
+    services.reminders.delete(
+      request.params['reminderId']!,
+      expectedVersion: expectedVersionFrom(request),
+    );
+    return Response(204);
+  });
+
   // ---- Agenda read model ----
 
   router.get('/api/v1/vaults/<vaultId>/agenda', (Request request) {
@@ -310,6 +471,46 @@ TaskSort _parseSort(String value) {
     return TaskSort.fromWire(value);
   } on ArgumentError {
     throw MalformedRequestError('Unknown sort "$value".');
+  }
+}
+
+OccurrenceFilter _parseOccurrenceFilter(String value) {
+  try {
+    return OccurrenceFilter.fromWire(value);
+  } on ArgumentError {
+    throw MalformedRequestError('Unknown occurrence status "$value".');
+  }
+}
+
+OccurrenceStatus _parseOccurrenceStatus(String value) {
+  try {
+    return OccurrenceStatus.fromWire(value);
+  } on ArgumentError {
+    throw MalformedRequestError('Unknown occurrence status "$value".');
+  }
+}
+
+ReminderFilter _parseReminderFilter(String value) {
+  try {
+    return ReminderFilter.fromWire(value);
+  } on ArgumentError {
+    throw MalformedRequestError('Unknown reminder state "$value".');
+  }
+}
+
+ReminderState _parseReminderState(String value) {
+  try {
+    return ReminderState.fromWire(value);
+  } on ArgumentError {
+    throw MalformedRequestError('Unknown reminder state "$value".');
+  }
+}
+
+ReminderTrigger _parseReminderTrigger(String value) {
+  try {
+    return ReminderTrigger.fromWire(value);
+  } on ArgumentError {
+    throw MalformedRequestError('Unknown trigger type "$value".');
   }
 }
 

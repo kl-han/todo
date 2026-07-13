@@ -362,6 +362,200 @@ void runBackendContractSuite(
     });
   });
 
+  group('recurrence contract', () {
+    test('a recurring task produces exactly the rule\'s occurrences',
+        () async {
+      final task = await client.createTask(
+        title: 'recur-weekly',
+        dueKind: 'date',
+        dueDate: '2033-01-03', // a Monday, far-future for isolation
+      );
+      final rule = await client.setRecurrence(
+        task.id,
+        dtstart: '2033-01-03',
+        rrule: 'FREQ=WEEKLY;BYDAY=MO,TH',
+      );
+      expect(rule.rrule, 'FREQ=WEEKLY;BYDAY=MO,TH');
+      expect((await client.getTask(task.id)).recurrenceRuleId, rule.id);
+
+      final occurrences = await client.listOccurrences(
+        from: '2033-01-01',
+        to: '2033-01-16',
+        taskId: task.id,
+      );
+      expect(
+        occurrences.map((o) => o.originalDate),
+        ['2033-01-03', '2033-01-06', '2033-01-10', '2033-01-13'],
+      );
+      expect(occurrences.every((o) => o.kind == 'due'), isTrue);
+      expect(occurrences.every((o) => o.status == 'open'), isTrue);
+
+      // Repeated queries materialize idempotently.
+      final again = await client.listOccurrences(
+        from: '2033-01-01',
+        to: '2033-01-16',
+        taskId: task.id,
+      );
+      expect(again.map((o) => o.id), occurrences.map((o) => o.id));
+    });
+
+    test('monthly on the 31st skips short months', () async {
+      final task = await client.createTask(
+        title: 'recur-31st',
+        dueKind: 'date',
+        dueDate: '2033-01-31',
+      );
+      await client.setRecurrence(
+        task.id,
+        dtstart: '2033-01-31',
+        rrule: 'FREQ=MONTHLY;BYMONTHDAY=31',
+      );
+      final occurrences = await client.listOccurrences(
+        from: '2033-01-01',
+        to: '2033-06-30',
+        taskId: task.id,
+      );
+      expect(
+        occurrences.map((o) => o.originalDate),
+        ['2033-01-31', '2033-03-31', '2033-05-31'],
+      );
+    });
+
+    test('completing one occurrence never touches its siblings', () async {
+      final task = await client.createTask(
+        title: 'recur-complete-one',
+        dueKind: 'date',
+        dueDate: '2033-02-07',
+      );
+      await client.setRecurrence(
+        task.id,
+        dtstart: '2033-02-07',
+        rrule: 'FREQ=WEEKLY;BYDAY=MO;COUNT=3',
+      );
+      final occurrences = await client.listOccurrences(
+        from: '2033-02-01',
+        to: '2033-02-28',
+        taskId: task.id,
+      );
+      expect(occurrences, hasLength(3));
+
+      final completed = await client.updateOccurrence(
+        occurrences.first.id,
+        status: 'completed',
+        ifMatchVersion: occurrences.first.version,
+      );
+      expect(completed.status, 'completed');
+
+      final after = await client.listOccurrences(
+        from: '2033-02-01',
+        to: '2033-02-28',
+        taskId: task.id,
+      );
+      expect(
+        after.map((o) => o.status),
+        ['completed', 'open', 'open'],
+        reason: 'siblings and the task itself stay open',
+      );
+      expect((await client.getTask(task.id)).status, 'open');
+    });
+
+    test('a rescheduled exception moves the value, keeps the identity, '
+        'and is not re-materialized', () async {
+      final task = await client.createTask(
+        title: 'recur-exception',
+        dueKind: 'date',
+        dueDate: '2033-03-07',
+      );
+      await client.setRecurrence(
+        task.id,
+        dtstart: '2033-03-07',
+        rrule: 'FREQ=WEEKLY;BYDAY=MO;COUNT=2',
+      );
+      final original = (await client.listOccurrences(
+        from: '2033-03-07',
+        to: '2033-03-07',
+        taskId: task.id,
+      ))
+          .single;
+
+      final moved = await client.updateOccurrence(
+        original.id,
+        occurrenceDate: '2033-03-09',
+      );
+      expect(moved.occurrenceDate, '2033-03-09');
+      expect(moved.originalDate, '2033-03-07');
+
+      final week = await client.listOccurrences(
+        from: '2033-03-07',
+        to: '2033-03-13',
+        taskId: task.id,
+      );
+      expect(week.map((o) => o.id), [original.id],
+          reason: 'the moved date must not be regenerated');
+    });
+  });
+
+  group('reminder contract', () {
+    test('relative reminder recomputes after the task moves (recovery)',
+        () async {
+      final task = await client.createTask(
+        title: 'remind-recovery',
+        dueKind: 'datetime',
+        dueAtUtc: DateTime.utc(2033, 4, 4, 15),
+        timezoneId: 'UTC',
+      );
+      final reminder = await client.createReminder(
+        taskId: task.id,
+        triggerType: 'relative_due',
+        offsetMinutes: 45,
+      );
+      expect(reminder.effectiveTriggerAtUtc, DateTime.utc(2033, 4, 4, 14, 15));
+
+      await client.updateTask(task.id,
+          dueAtUtc: DateTime.utc(2033, 4, 5, 15));
+      final read = await client.getReminder(reminder.id);
+      expect(read.effectiveTriggerAtUtc, DateTime.utc(2033, 4, 5, 14, 15));
+
+      final scheduled = await client.updateReminder(
+        reminder.id,
+        state: 'scheduled',
+        platformScheduleId: 'conformance-os-1',
+        ifMatchVersion: read.version,
+      );
+      expect(scheduled.platformScheduleId, 'conformance-os-1');
+
+      final recovered =
+          await client.updateReminder(reminder.id, state: 'pending');
+      expect(recovered.platformScheduleId, isNull,
+          reason: 'pending resets the stale platform schedule');
+    });
+
+    test('relative reminders on date-only sides are 400 problems',
+        () async {
+      final task = await client.createTask(
+        title: 'remind-invalid',
+        dueKind: 'date',
+        dueDate: '2033-04-04',
+      );
+      await expectLater(
+        client.createReminder(
+          taskId: task.id,
+          triggerType: 'relative_due',
+          offsetMinutes: 10,
+        ),
+        throwsA(_problem(400, 'problems/validation')),
+      );
+    });
+
+    test('capabilities advertise recurrence and reminders', () async {
+      final capabilities = await client.capabilities();
+      expect(
+        capabilities.features,
+        containsAll(['recurrence', 'reminders']),
+      );
+    });
+  });
+
   group('tag contract', () {
     test('tag lifecycle: create, progress, rename, delete', () async {
       final tag = await client.createTag(name: 'suite-lifecycle');

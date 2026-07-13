@@ -96,6 +96,8 @@ Future<void> _backendMain(_Bootstrap bootstrap) async {
   final services = AppServices(
     taskRepository: SqliteTaskRepository(database),
     tagRepository: SqliteTagRepository(database),
+    recurrenceRepository: SqliteRecurrenceRepository(database),
+    reminderRepository: SqliteReminderRepository(database),
   );
 
   final handler = buildApiHandler(

@@ -2,7 +2,7 @@ name: quadrant_backend_host
 description: >-
   Hosts backends for the Flutter application: the embedded loopback backend
   isolate for local mode and the remote profile for remote mode.
-version: 1.1.0
+version: 1.2.0
 publish_to: none
 resolution: workspace
 

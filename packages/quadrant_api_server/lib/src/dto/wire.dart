@@ -1,3 +1,4 @@
+import 'package:quadrant_application/quadrant_application.dart';
 import 'package:quadrant_domain/quadrant_domain.dart';
 
 /// Wire encoding of domain objects. This is the only place task/tag JSON
@@ -27,6 +28,7 @@ Map<String, Object?> taskToJson(Task task, List<String> tagIds) => {
           : encodeInstant(task.schedule.dueAtUtc!),
       'timezone_id': task.schedule.timezoneId,
       'estimated_minutes': task.estimatedMinutes,
+      'recurrence_rule_id': task.recurrenceRuleId,
       'completed_at':
           task.completedAt == null ? null : encodeInstant(task.completedAt!),
       'created_at': encodeInstant(task.createdAt),
@@ -36,6 +38,58 @@ Map<String, Object?> taskToJson(Task task, List<String> tagIds) => {
       'version': task.version,
       'tag_ids': tagIds,
     };
+
+Map<String, Object?> recurrenceToJson(
+        RecurrenceRuleRecord rule, String taskId) =>
+    {
+      'id': rule.id,
+      'task_id': taskId,
+      'dtstart': rule.dtstart.toString(),
+      'rrule': rule.rrule,
+      'created_at': encodeInstant(rule.createdAt),
+      'updated_at': encodeInstant(rule.updatedAt),
+    };
+
+Map<String, Object?> occurrenceToJson(TaskOccurrence occurrence) => {
+      'id': occurrence.id,
+      'task_id': occurrence.taskId,
+      'recurrence_rule_id': occurrence.recurrenceRuleId,
+      'original_date': occurrence.originalDate.toString(),
+      'kind': occurrence.kind.wireName,
+      'occurrence_date': occurrence.date?.toString(),
+      'occurrence_at_utc':
+          occurrence.atUtc == null ? null : encodeInstant(occurrence.atUtc!),
+      'status': occurrence.status.wireName,
+      'completed_at': occurrence.completedAt == null
+          ? null
+          : encodeInstant(occurrence.completedAt!),
+      'created_at': encodeInstant(occurrence.createdAt),
+      'updated_at': encodeInstant(occurrence.updatedAt),
+      'version': occurrence.version,
+    };
+
+Map<String, Object?> reminderToJson(ResolvedReminder resolved) {
+  final reminder = resolved.reminder;
+  return {
+    'id': reminder.id,
+    'task_id': reminder.taskId,
+    'occurrence_id': reminder.occurrenceId,
+    'trigger_type': reminder.trigger.wireName,
+    'trigger_at_utc': reminder.triggerAtUtc == null
+        ? null
+        : encodeInstant(reminder.triggerAtUtc!),
+    'offset_minutes': reminder.offsetMinutes,
+    'effective_trigger_at_utc': resolved.effectiveTriggerAt == null
+        ? null
+        : encodeInstant(resolved.effectiveTriggerAt!),
+    'channel': reminder.channel,
+    'state': reminder.state.wireName,
+    'platform_schedule_id': reminder.platformScheduleId,
+    'created_at': encodeInstant(reminder.createdAt),
+    'updated_at': encodeInstant(reminder.updatedAt),
+    'version': reminder.version,
+  };
+}
 
 Map<String, Object?> tagToJson(Tag tag, TagProgress progress) => {
       'id': tag.id,

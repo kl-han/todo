@@ -30,6 +30,8 @@ Handler buildApiHandler(ApiServerConfig config) {
             'soft-delete-restore',
             'temporal',
             'agenda',
+            'recurrence',
+            'reminders',
           ],
         }),
         headers: {'content-type': 'application/json'},

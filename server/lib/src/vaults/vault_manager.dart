@@ -63,6 +63,8 @@ class VaultManager {
     final services = AppServices(
       taskRepository: SqliteTaskRepository(database),
       tagRepository: SqliteTagRepository(database),
+      recurrenceRepository: SqliteRecurrenceRepository(database),
+      reminderRepository: SqliteReminderRepository(database),
     );
     _open[name] = _OpenVault(database, services);
     return services;

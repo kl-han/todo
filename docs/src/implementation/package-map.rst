@@ -9,6 +9,8 @@ Package Map
    │   └── lib/{bootstrap,presentation,platform}
    ├── packages/
    │   ├── quadrant_domain/         # entities, rules, value_objects
+   │   ├── quadrant_temporal/       # recurrence rules, occurrence
+   │   │                            # generation (pure calendar math)
    │   ├── quadrant_application/    # commands, queries, services,
    │   │                            # repository interfaces
    │   ├── quadrant_store/          # database, migrations, repositories
