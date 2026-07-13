@@ -1,3 +1,5 @@
+import 'package:quadrant_application/quadrant_application.dart';
+
 /// Which kind of process is serving the API. Reported by `/api/v1/health`
 /// so clients and tests can tell the two apart without behavioral
 /// differences existing anywhere else.
@@ -12,11 +14,17 @@ enum BackendKind {
 class ApiServerConfig {
   const ApiServerConfig({
     required this.backendKind,
+    required this.vaults,
     this.authToken,
     this.schemaVersion = 0,
   });
 
   final BackendKind backendKind;
+
+  /// Resolves a vault id to its application services, or null when the
+  /// vault does not exist. The embedded backend exposes a single vault
+  /// named `default`; the standalone server may host several (v0.6).
+  final AppServices? Function(String vaultId) vaults;
 
   /// Token required on every route except `/api/v1/health`. The embedded
   /// backend passes a random per-launch value (`Authorization: Local <t>`);

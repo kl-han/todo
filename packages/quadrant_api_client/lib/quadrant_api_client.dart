@@ -7,4 +7,6 @@ library;
 
 export 'src/client/quadrant_api_client.dart';
 export 'src/dto/health_report.dart';
+export 'src/dto/tag_dto.dart';
+export 'src/dto/task_dto.dart';
 export 'src/errors/api_exception.dart';

@@ -3,18 +3,20 @@ import 'dart:io';
 import 'dart:isolate';
 
 import 'package:quadrant_api_server/quadrant_api_server.dart';
+import 'package:quadrant_application/quadrant_application.dart';
+import 'package:quadrant_store/quadrant_store.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 
 import 'local_session_token.dart';
 
-/// The embedded local-mode backend: a dedicated isolate that binds an HTTP
-/// server to `127.0.0.1` on an OS-assigned ephemeral port and serves the
-/// shared REST handler.
+/// The embedded local-mode backend: a dedicated isolate that owns the
+/// SQLite database and binds an HTTP server to `127.0.0.1` on an
+/// OS-assigned ephemeral port, serving the shared REST handler.
 ///
 /// Startup sequence (see docs/src/architecture/backend-lifecycle.rst):
-/// generate a per-launch token, spawn the isolate, bind loopback port 0,
-/// report the port back, then the caller polls `/api/v1/health` before
-/// rendering the application.
+/// generate a per-launch token, spawn the isolate, open and migrate the
+/// database, bind loopback port 0, report the port back, then the caller
+/// polls `/api/v1/health` before rendering the application.
 class EmbeddedBackend {
   EmbeddedBackend._(this.port, this.token, this._isolate, this._commands);
 
@@ -29,6 +31,8 @@ class EmbeddedBackend {
   Uri get baseUrl => Uri.parse('http://127.0.0.1:$port');
   String get authorization => 'Local $token';
 
+  /// [databasePath] is the vault file; null opens an in-memory vault
+  /// (tests and throwaway runs — data dies with the backend).
   static Future<EmbeddedBackend> start({String? databasePath}) async {
     final token = LocalSessionToken.generate();
     final ready = ReceivePort();
@@ -48,9 +52,9 @@ class EmbeddedBackend {
     throw StateError('Embedded backend failed to start: $message');
   }
 
-  /// Gracefully closes the HTTP server and ends the isolate. iOS may kill
-  /// the process without ever calling this; the backend must stay correct
-  /// anyway (every write commits before its HTTP response is sent).
+  /// Gracefully closes the HTTP server and database and ends the isolate.
+  /// iOS may kill the process without ever calling this; the backend must
+  /// stay correct anyway (every write commits before its HTTP response).
   Future<void> stop({Duration timeout = const Duration(seconds: 2)}) async {
     final ack = ReceivePort();
     _commands.send(ack.sendPort);
@@ -69,7 +73,6 @@ class _Bootstrap {
 
   final SendPort ready;
   final String token;
-  // ignore: unused_field — consumed from v0.2 when the isolate owns SQLite.
   final String? databasePath;
 }
 
@@ -80,11 +83,26 @@ class _Started {
   final SendPort commands;
 }
 
+/// The fixed vault id served by the embedded backend.
+const String embeddedVaultId = 'default';
+
 Future<void> _backendMain(_Bootstrap bootstrap) async {
+  // The backend isolate owns the database; the UI isolate never opens
+  // SQLite directly.
+  final database = bootstrap.databasePath == null
+      ? QuadrantDatabase.inMemory()
+      : QuadrantDatabase.open(bootstrap.databasePath!);
+  final services = AppServices(
+    taskRepository: SqliteTaskRepository(database),
+    tagRepository: SqliteTagRepository(database),
+  );
+
   final handler = buildApiHandler(
     ApiServerConfig(
       backendKind: BackendKind.embedded,
       authToken: bootstrap.token,
+      schemaVersion: database.userVersion,
+      vaults: (vaultId) => vaultId == embeddedVaultId ? services : null,
     ),
   );
 
@@ -102,6 +120,7 @@ Future<void> _backendMain(_Bootstrap bootstrap) async {
   await for (final message in commands) {
     if (message is SendPort) {
       await server.close(force: true);
+      database.close();
       message.send('stopped');
       break;
     }

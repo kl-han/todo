@@ -1,18 +1,41 @@
 import 'dart:io';
 
 import 'package:quadrant_api_server/quadrant_api_server.dart';
+import 'package:quadrant_application/quadrant_application.dart';
+import 'package:quadrant_store/quadrant_store.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 
 import 'configuration/server_config.dart';
 
-/// Binds and serves the shared API handler. Returns the live server so
-/// callers (tests, the daemon wrapper in v0.6) can inspect the bound port
-/// and close it.
-Future<HttpServer> runServer(ServerConfig config) async {
+/// A live standalone server and the resources it owns.
+class RunningServer {
+  RunningServer(this._httpServer, this._database);
+
+  final HttpServer _httpServer;
+  final QuadrantDatabase _database;
+
+  int get port => _httpServer.port;
+
+  Future<void> close() async {
+    await _httpServer.close();
+    _database.close();
+  }
+}
+
+/// Opens the vault database, binds, and serves the shared API handler.
+Future<RunningServer> runServer(ServerConfig config) async {
+  final database = QuadrantDatabase.open(config.databasePath);
+  final services = AppServices(
+    taskRepository: SqliteTaskRepository(database),
+    tagRepository: SqliteTagRepository(database),
+  );
+
   final handler = buildApiHandler(
     ApiServerConfig(
       backendKind: BackendKind.standalone,
       authToken: config.token,
+      schemaVersion: database.userVersion,
+      vaults: (vaultId) => vaultId == 'default' ? services : null,
     ),
   );
 
@@ -22,5 +45,5 @@ Future<HttpServer> runServer(ServerConfig config) async {
   stdout.writeln(
     'quadrant_server listening on http://${config.host}:${server.port}',
   );
-  return server;
+  return RunningServer(server, database);
 }

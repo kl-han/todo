@@ -12,6 +12,8 @@ environment:
 dependencies:
   quadrant_api_client: ^0.1.0
   quadrant_api_server: ^0.1.0
+  quadrant_application: ^0.1.0
+  quadrant_store: ^0.1.0
   shelf: ^1.4.0
 
 dev_dependencies:

@@ -55,9 +55,17 @@ class StandaloneBackendHarness implements BackendHarness {
   static Future<StandaloneBackendHarness> start({String? serverDir}) async {
     final dir = serverDir ?? _defaultServerDir();
     final token = LocalSessionToken.generate();
+    // Fresh vault per harness run, cleaned up by the OS temp policy.
+    final dataDir = Directory.systemTemp.createTempSync('quadrant-conf-');
     final process = await Process.start(
       Platform.resolvedExecutable,
-      ['run', 'bin/quadrant_server.dart', '--port', '0', '--token', token],
+      [
+        'run',
+        'bin/quadrant_server.dart',
+        '--port', '0',
+        '--token', token,
+        '--database', '${dataDir.path}/default.sqlite3',
+      ],
       workingDirectory: dir,
     );
 

@@ -1,6 +1,11 @@
 /// Persistence layer for Quadrant Todo: SQLite database, migrations, and
 /// repository implementations.
 ///
-/// Populated in v0.2. Only this package touches SQLite; the UI and REST
-/// handlers reach it exclusively through repository interfaces.
+/// Only this package touches SQLite. Everything above reaches it through
+/// the repository interfaces defined in `quadrant_application`.
 library;
+
+export 'src/database/quadrant_database.dart';
+export 'src/migrations/migrations.dart' show schemaVersion;
+export 'src/repositories/sqlite_tag_repository.dart';
+export 'src/repositories/sqlite_task_repository.dart';
