@@ -32,12 +32,18 @@ Future<BackendConnection> bootstrapLocalBackend({String? databasePath}) async {
 
 /// Platform-appropriate vault location for local mode.
 ///
-/// * Linux: `$XDG_DATA_HOME/quadrant-todo/default.sqlite3`
-///   (or `~/.local/share/...`).
-/// * iOS/macOS: the app's Documents-adjacent HOME sandbox; v0.4 refines
-///   this to the proper application-support directory.
+/// * iOS: `$HOME/Library/Application Support/quadrant-todo/` inside the
+///   app sandbox — backed up by the system, never user-visible, and not
+///   purged like Caches.
+/// * Linux: `$XDG_DATA_HOME/quadrant-todo/` (or `~/.local/share/...`).
 String? defaultLocalDatabasePath() {
   final env = Platform.environment;
+  if (Platform.isIOS || Platform.isMacOS) {
+    final home = env['HOME'];
+    if (home == null) return null;
+    return '$home/Library/Application Support/quadrant-todo/'
+        'default.sqlite3';
+  }
   final base = env['XDG_DATA_HOME'] ??
       (env['HOME'] == null ? null : '${env['HOME']}/.local/share');
   if (base == null) return null; // in-memory fallback (tests only)
