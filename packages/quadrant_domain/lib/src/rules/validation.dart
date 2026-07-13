@@ -12,6 +12,7 @@ class DomainValidationError extends Error {
 const int maxTitleLength = 500;
 const int maxNotesLength = 10000;
 const int maxTagNameLength = 100;
+const int maxEstimatedMinutes = 10080; // one week
 
 final RegExp _colorPattern = RegExp(r'^#[0-9a-fA-F]{6}$');
 
@@ -35,6 +36,15 @@ String validateTaskNotes(String notes) {
     );
   }
   return notes;
+}
+
+int validateEstimatedMinutes(int minutes) {
+  if (minutes < 1 || minutes > maxEstimatedMinutes) {
+    throw DomainValidationError(
+      'estimated_minutes must be between 1 and $maxEstimatedMinutes.',
+    );
+  }
+  return minutes;
 }
 
 String validateTagName(String name) {

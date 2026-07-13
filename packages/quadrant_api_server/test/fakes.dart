@@ -33,6 +33,16 @@ class InMemoryTaskRepository implements TaskRepository {
     return result;
   }
 
+  @override
+  List<Task> scheduled(StatusFilter status) => _tasks.values.where((task) {
+        if (task.isDeleted || !task.schedule.isScheduled) return false;
+        return switch (status) {
+          StatusFilter.open => task.status == TaskStatus.open,
+          StatusFilter.completed => task.status == TaskStatus.completed,
+          StatusFilter.all => true,
+        };
+      }).toList();
+
   static int _matrixModifiedAsc(Task a, Task b) {
     int flag(bool v) => v ? 0 : 1;
     final urgent = flag(a.isUrgent).compareTo(flag(b.isUrgent));

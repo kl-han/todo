@@ -44,10 +44,28 @@ Schema version 1, created by the first migration in
      ON tasks(is_urgent DESC, is_important DESC, updated_at ASC, id ASC)
      WHERE deleted_at IS NULL;
 
+.. versionchanged:: 1.1
+
+Schema version 2 (second migration) adds the temporal columns to
+``tasks``:
+
+.. code-block:: sql
+
+   ALTER TABLE tasks ADD COLUMN start_kind TEXT NOT NULL DEFAULT 'none';
+   ALTER TABLE tasks ADD COLUMN start_date TEXT;
+   ALTER TABLE tasks ADD COLUMN start_at_utc TEXT;
+   ALTER TABLE tasks ADD COLUMN due_kind TEXT NOT NULL DEFAULT 'none';
+   ALTER TABLE tasks ADD COLUMN due_date TEXT;
+   ALTER TABLE tasks ADD COLUMN due_at_utc TEXT;
+   ALTER TABLE tasks ADD COLUMN timezone_id TEXT;
+   ALTER TABLE tasks ADD COLUMN estimated_minutes INTEGER;
+
 Notes:
 
 * There is **no** stored quadrant or status column — both derive from
   flags and ``completed_at`` (:doc:`/architecture/domain-model`).
+* ``start_date``/``due_date`` hold plain ``YYYY-MM-DD`` text, never
+  midnight-UTC instants (:doc:`/product/scheduling-behavior`).
 * The partial unique index enforces name uniqueness among live tags while
   letting deleted tags free their names.
 * Timestamps are fixed-width UTC ISO-8601 strings
