@@ -7,6 +7,13 @@ Prerequisites (Arch): ``flutter`` (stable), ``clang cmake ninja gtk3``.
 
 .. code-block:: bash
 
+   make dist-linux
+   make dist-linux FLUTTER="fvm flutter"   # when using FVM
+
+Equivalent explicit commands:
+
+.. code-block:: bash
+
    cd apps/quadrant_todo
    flutter create --platforms=linux .   # once, generates linux/ runner
    flutter build linux --release
