@@ -2,7 +2,7 @@ name: quadrant_conformance
 description: >-
   Backend contract suite: every REST behavior must pass unchanged against
   the embedded backend isolate and the standalone server process.
-version: 0.1.0
+version: 1.0.0
 publish_to: none
 resolution: workspace
 
@@ -11,8 +11,8 @@ environment:
 
 dependencies:
   http: ^1.2.0
-  quadrant_api_client: ^0.1.0
-  quadrant_backend_host: ^0.1.0
+  quadrant_api_client: ^1.0.0
+  quadrant_backend_host: ^1.0.0
   test: ^1.25.0
 
 dev_dependencies:

@@ -20,9 +20,13 @@ degrading, because retrying cannot fix a protocol mismatch.
 Versioning policy
 -----------------
 
-* ``v1`` is additive-only once frozen at v1.0: new routes, new optional
-  fields, and new ``features`` entries may appear; existing fields never
-  change meaning or disappear.
+.. versionchanged:: 1.0
+   The v1 contract is **frozen**: everything in ``api/openapi.yaml`` as
+   of 1.0.0 is stable.
+
+* ``v1`` is additive-only from v1.0: new routes, new optional fields,
+  and new ``features`` entries may appear; existing fields never change
+  meaning or disappear.
 * Clients must ignore unknown response fields and unknown feature names.
 * A breaking change would be ``/api/v2/`` served alongside ``v1`` —
   out of scope before v1.0.
