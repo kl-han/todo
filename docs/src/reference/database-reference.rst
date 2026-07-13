@@ -1,7 +1,7 @@
 Database Reference
 ==================
 
-Schema version: **4** (see :doc:`/implementation/sqlite-schema` for DDL
+Schema version: **5** (see :doc:`/implementation/sqlite-schema` for DDL
 and :doc:`/implementation/migrations` for the upgrade policy).
 
 Tables
@@ -69,6 +69,15 @@ Tables
    transitions; live portions are derived, never stored.
 
    .. versionadded:: 1.3
+
+``daily_plans`` / ``daily_plan_items``
+   One plan per ``local_date`` (unique). Items: ``daily_plan_id``
+   (cascade FK), ``task_id?`` xor ``occurrence_id?`` (cascade FKs),
+   ``position``, ``planned_minutes?``, ``scheduled_start?`` (``HH:MM``),
+   ``outcome?`` (``done|partial|skipped|moved``), timestamps,
+   ``version``.
+
+   .. versionadded:: 1.6
 
 usage.sqlite3
 -------------

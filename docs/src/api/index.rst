@@ -12,6 +12,7 @@ REST API
    reminder-api
    focus-api
    agent-api
+   plan-api
    quadrant-api
    tag-api
    concurrency

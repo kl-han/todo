@@ -5,7 +5,7 @@ info:
     Normative REST contract for Quadrant Todo. The same contract is served
     by the embedded (loopback) backend and the standalone server; both must
     pass the shared conformance suite. Errors use RFC 9457 Problem Details.
-  version: 1.5.0
+  version: 1.6.0
 
 servers:
   - url: http://127.0.0.1:{port}
@@ -33,6 +33,9 @@ tags:
   - name: focus
     description: Pomodoro focus sessions; the backend owns the timer, so
       closing a GUI never cancels a session.
+  - name: plans
+    description: Daily plans - a user-controlled selection of work for
+      one local date. Nothing is auto-filled.
   - name: tags
     description: Tag CRUD and progress.
 
@@ -631,6 +634,163 @@ paths:
         "409": { $ref: "#/components/responses/ConflictProblem" }
         "412": { $ref: "#/components/responses/VersionConflictProblem" }
 
+
+  /api/v1/vaults/{vault_id}/plans/{local_date}:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - $ref: "#/components/parameters/LocalDate"
+    get:
+      operationId: getDailyPlan
+      tags: [plans]
+      summary: Read (creating if absent) the plan for one local date.
+      description: >-
+        A plan is a per-date singleton; the first read materializes an
+        empty one. The plan is never auto-filled with due tasks - the
+        user stays in control of what enters the day.
+      responses:
+        "200":
+          description: The plan with its items in position order.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DailyPlan" }
+        "400": { $ref: "#/components/responses/ValidationProblem" }
+    patch:
+      operationId: updateDailyPlan
+      tags: [plans]
+      summary: Record the daily review (notes, status).
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                review_notes: { type: string, maxLength: 10000 }
+                status: { type: string, enum: [open, reviewed] }
+      responses:
+        "200":
+          description: The updated plan.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DailyPlan" }
+        "400": { $ref: "#/components/responses/ValidationProblem" }
+        "412": { $ref: "#/components/responses/VersionConflictProblem" }
+
+  /api/v1/vaults/{vault_id}/plans/{local_date}/items:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - $ref: "#/components/parameters/LocalDate"
+    post:
+      operationId: addPlanItem
+      tags: [plans]
+      summary: Place a task or occurrence into the day.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlanItemCreate" }
+      responses:
+        "201":
+          description: The created item, appended at the end.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlanItem" }
+        "400": { $ref: "#/components/responses/ValidationProblem" }
+        "404": { $ref: "#/components/responses/NotFoundProblem" }
+        "409": { $ref: "#/components/responses/ConflictProblem" }
+
+  /api/v1/vaults/{vault_id}/plans/{local_date}/items/{item_id}:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - $ref: "#/components/parameters/LocalDate"
+      - name: item_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      operationId: updatePlanItem
+      tags: [plans]
+      summary: Reorder, schedule, re-estimate, or record the outcome.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                position: { type: integer, minimum: 0 }
+                planned_minutes: { type: [integer, "null"], minimum: 1 }
+                scheduled_start:
+                  type: [string, "null"]
+                  pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                  description: Wall-clock start within the plan day.
+                outcome:
+                  type: [string, "null"]
+                  enum: [done, partial, skipped, moved, null]
+      responses:
+        "200":
+          description: The updated item.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlanItem" }
+        "400": { $ref: "#/components/responses/ValidationProblem" }
+        "404": { $ref: "#/components/responses/NotFoundProblem" }
+        "412": { $ref: "#/components/responses/VersionConflictProblem" }
+    delete:
+      operationId: removePlanItem
+      tags: [plans]
+      summary: Remove an item from the day.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204":
+          description: Removed.
+        "404": { $ref: "#/components/responses/NotFoundProblem" }
+        "412": { $ref: "#/components/responses/VersionConflictProblem" }
+
+  /api/v1/vaults/{vault_id}/plans/{local_date}/accuracy:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - $ref: "#/components/parameters/LocalDate"
+    get:
+      operationId: getPlanAccuracy
+      tags: [plans]
+      summary: Planned versus actual focus time for the day.
+      responses:
+        "200":
+          description: The comparison.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  [local_date, planned_minutes, actual_focus_seconds,
+                   focus_session_count]
+                properties:
+                  local_date: { type: string, format: date }
+                  planned_minutes:
+                    type: integer
+                    description: Sum of the items' planned_minutes.
+                  actual_focus_seconds:
+                    type: integer
+                    description: >-
+                      Active seconds of focus sessions started on that
+                      local date (task-vault clock).
+                  focus_session_count: { type: integer }
+        "400": { $ref: "#/components/responses/ValidationProblem" }
+
   /api/v1/vaults/{vault_id}/agenda:
     parameters:
       - $ref: "#/components/parameters/VaultId"
@@ -820,6 +980,12 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    LocalDate:
+      name: local_date
+      in: path
+      required: true
+      schema: { type: string, format: date }
+      description: The plan's local calendar date (YYYY-MM-DD).
     StatusFilter:
       name: status
       in: query
@@ -1194,6 +1360,62 @@ components:
           maximum: 3600
           default: 0
         notes: { type: string, maxLength: 10000 }
+
+
+    DailyPlan:
+      type: object
+      required:
+        [id, local_date, planned_minutes, review_notes, status, items,
+         created_at, updated_at, version]
+      properties:
+        id: { type: string, format: uuid }
+        local_date: { type: string, format: date }
+        planned_minutes:
+          type: integer
+          description: Derived sum of item planned_minutes; never stored.
+        review_notes: { type: string, maxLength: 10000 }
+        status: { type: string, enum: [open, reviewed] }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/PlanItem" }
+          description: Position order, ties by id.
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        version: { type: integer, minimum: 1 }
+
+    PlanItem:
+      type: object
+      required:
+        [id, daily_plan_id, task_id, occurrence_id, position,
+         planned_minutes, scheduled_start, outcome, created_at,
+         updated_at, version]
+      properties:
+        id: { type: string, format: uuid }
+        daily_plan_id: { type: string, format: uuid }
+        task_id: { type: [string, "null"], format: uuid }
+        occurrence_id: { type: [string, "null"], format: uuid }
+        position: { type: integer, minimum: 0 }
+        planned_minutes: { type: [integer, "null"], minimum: 1 }
+        scheduled_start:
+          type: [string, "null"]
+          description: HH:MM wall-clock start within the plan day.
+        outcome:
+          type: [string, "null"]
+          enum: [done, partial, skipped, moved, null]
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        version: { type: integer, minimum: 1 }
+
+    PlanItemCreate:
+      type: object
+      description: Exactly one of task_id/occurrence_id must be set.
+      properties:
+        task_id: { type: string, format: uuid }
+        occurrence_id: { type: string, format: uuid }
+        planned_minutes: { type: integer, minimum: 1 }
+        scheduled_start:
+          type: string
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
 
     AgendaReport:
       type: object

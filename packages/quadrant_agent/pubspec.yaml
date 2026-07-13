@@ -2,7 +2,7 @@ name: quadrant_agent
 description: >-
   Quadrant personal agent: hosts the local backend, owns desktop timers
   and reminder delivery, and survives GUI shutdown.
-version: 1.5.0
+version: 1.6.0
 publish_to: none
 resolution: workspace
 

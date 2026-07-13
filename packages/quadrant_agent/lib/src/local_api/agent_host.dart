@@ -72,6 +72,7 @@ class AgentHost {
       recurrenceRepository: SqliteRecurrenceRepository(database),
       reminderRepository: SqliteReminderRepository(database),
       focusSessionRepository: SqliteFocusSessionRepository(database),
+      planningRepository: SqlitePlanningRepository(database),
       clock: _clock,
     );
     _scheduler = AgentScheduler(services, notifier, clock: _clock);

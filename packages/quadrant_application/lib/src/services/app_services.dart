@@ -1,6 +1,7 @@
 import '../repositories.dart';
 import 'agenda_service.dart';
 import 'focus_service.dart';
+import 'planning_service.dart';
 import 'quadrant_service.dart';
 import 'recurrence_service.dart';
 import 'reminder_service.dart';
@@ -16,6 +17,7 @@ class AppServices {
     required RecurrenceRepository recurrenceRepository,
     required ReminderRepository reminderRepository,
     required FocusSessionRepository focusSessionRepository,
+    required PlanningRepository planningRepository,
     DateTime Function()? clock,
   })  : tasks = TaskService(taskRepository, tagRepository, clock: clock),
         tags = TagService(tagRepository, taskRepository, clock: clock),
@@ -28,6 +30,9 @@ class AppServices {
             clock: clock),
         focus = FocusService(
             focusSessionRepository, taskRepository, recurrenceRepository,
+            clock: clock),
+        planning = PlanningService(planningRepository, taskRepository,
+            recurrenceRepository, focusSessionRepository,
             clock: clock);
 
   final TaskService tasks;
@@ -37,4 +42,5 @@ class AppServices {
   final RecurrenceService recurrence;
   final ReminderService reminders;
   final FocusService focus;
+  final PlanningService planning;
 }

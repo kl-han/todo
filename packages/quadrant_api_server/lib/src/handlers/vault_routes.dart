@@ -364,6 +364,102 @@ void mountVaultRoutes(Router router, ApiServerConfig config) {
         _json(200, focusSessionToJson(session)), session.version);
   });
 
+  // ---- Daily plans ----
+
+  PlainDate planDate(Request request) =>
+      _parseDate(request.params['localDate'], 'local_date')!;
+
+  router.get('/api/v1/vaults/<vaultId>/plans/<localDate>',
+      (Request request) {
+    final services = vault(request);
+    final date = planDate(request);
+    final plan = services.planning.plan(date);
+    return withEtag(
+      _json(200, planToJson(plan, services.planning.items(date))),
+      plan.version,
+    );
+  });
+
+  router.patch('/api/v1/vaults/<vaultId>/plans/<localDate>',
+      (Request request) async {
+    final services = vault(request);
+    final date = planDate(request);
+    final body = await readJsonObject(request);
+    final statusName = optional<String>(body, 'status');
+    final plan = services.planning.review(
+      date,
+      reviewNotes: optional<String>(body, 'review_notes'),
+      status: statusName == null ? null : _parsePlanStatus(statusName),
+      expectedVersion: expectedVersionFrom(request),
+    );
+    return withEtag(
+      _json(200, planToJson(plan, services.planning.items(date))),
+      plan.version,
+    );
+  });
+
+  router.post('/api/v1/vaults/<vaultId>/plans/<localDate>/items',
+      (Request request) async {
+    final services = vault(request);
+    final body = await readJsonObject(request);
+    final item = services.planning.addItem(
+      planDate(request),
+      taskId: optional<String>(body, 'task_id'),
+      occurrenceId: optional<String>(body, 'occurrence_id'),
+      plannedMinutes: optional<int>(body, 'planned_minutes'),
+      scheduledStart: optional<String>(body, 'scheduled_start'),
+    );
+    return withEtag(_json(201, planItemToJson(item)), item.version);
+  });
+
+  router.patch('/api/v1/vaults/<vaultId>/plans/<localDate>/items/<itemId>',
+      (Request request) async {
+    final services = vault(request);
+    final body = await readJsonObject(request);
+    final outcomeName = body.containsKey('outcome')
+        ? optional<String>(body, 'outcome')
+        : null;
+    final item = services.planning.updateItem(
+      planDate(request),
+      request.params['itemId']!,
+      position: optional<int>(body, 'position'),
+      plannedMinutes: body.containsKey('planned_minutes')
+          ? () => optional<int>(body, 'planned_minutes')
+          : null,
+      scheduledStart: body.containsKey('scheduled_start')
+          ? () => optional<String>(body, 'scheduled_start')
+          : null,
+      outcome: body.containsKey('outcome')
+          ? () => outcomeName == null ? null : _parseOutcome(outcomeName)
+          : null,
+      expectedVersion: expectedVersionFrom(request),
+    );
+    return withEtag(_json(200, planItemToJson(item)), item.version);
+  });
+
+  router.delete('/api/v1/vaults/<vaultId>/plans/<localDate>/items/<itemId>',
+      (Request request) {
+    final services = vault(request);
+    services.planning.removeItem(
+      planDate(request),
+      request.params['itemId']!,
+      expectedVersion: expectedVersionFrom(request),
+    );
+    return Response(204);
+  });
+
+  router.get('/api/v1/vaults/<vaultId>/plans/<localDate>/accuracy',
+      (Request request) {
+    final services = vault(request);
+    final accuracy = services.planning.accuracy(planDate(request));
+    return _json(200, {
+      'local_date': accuracy.localDate.toString(),
+      'planned_minutes': accuracy.plannedMinutes,
+      'actual_focus_seconds': accuracy.actualFocusSeconds,
+      'focus_session_count': accuracy.focusSessionCount,
+    });
+  });
+
   // ---- Agenda read model ----
 
   router.get('/api/v1/vaults/<vaultId>/agenda', (Request request) {
@@ -549,6 +645,22 @@ TaskSort _parseSort(String value) {
     return TaskSort.fromWire(value);
   } on ArgumentError {
     throw MalformedRequestError('Unknown sort "$value".');
+  }
+}
+
+PlanStatus _parsePlanStatus(String value) {
+  try {
+    return PlanStatus.fromWire(value);
+  } on ArgumentError {
+    throw MalformedRequestError('Unknown plan status "$value".');
+  }
+}
+
+PlanOutcome _parseOutcome(String value) {
+  try {
+    return PlanOutcome.fromWire(value);
+  } on ArgumentError {
+    throw MalformedRequestError('Unknown outcome "$value".');
   }
 }
 

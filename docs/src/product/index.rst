@@ -9,6 +9,7 @@ Product Behavior
    recurrence-behavior
    focus-behavior
    usage-tracking
+   daily-planning
    quadrant-behavior
    tag-behavior
    sorting-filtering

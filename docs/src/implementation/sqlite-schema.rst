@@ -72,6 +72,12 @@ Schema version 3 (third migration) adds ``recurrence_rules``,
 Schema version 4 (fourth migration) adds ``focus_sessions``; see the
 migration source and :doc:`/reference/database-reference`.
 
+.. versionchanged:: 1.6
+
+Schema version 5 (fifth migration) adds ``daily_plans`` and
+``daily_plan_items``; see the migration source and
+:doc:`/reference/database-reference`.
+
 Notes:
 
 * There is **no** stored quadrant or status column — both derive from

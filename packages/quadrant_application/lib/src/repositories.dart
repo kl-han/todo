@@ -102,6 +102,26 @@ abstract interface class FocusSessionRepository {
   void update(FocusSession session);
 }
 
+/// Persistence interface for daily plans.
+abstract interface class PlanningRepository {
+  DailyPlan? findPlanByDate(PlainDate localDate);
+
+  void insertPlan(DailyPlan plan);
+
+  void updatePlan(DailyPlan plan);
+
+  DailyPlanItem? findItemById(String id);
+
+  /// Items of one plan, ordered by position then id.
+  List<DailyPlanItem> itemsOf(String planId);
+
+  void insertItem(DailyPlanItem item);
+
+  void updateItem(DailyPlanItem item);
+
+  void deleteItem(String id);
+}
+
 /// Persistence interface for tags.
 abstract interface class TagRepository {
   Tag? findById(String id);

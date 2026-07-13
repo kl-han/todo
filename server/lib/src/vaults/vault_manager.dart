@@ -66,6 +66,7 @@ class VaultManager {
       recurrenceRepository: SqliteRecurrenceRepository(database),
       reminderRepository: SqliteReminderRepository(database),
       focusSessionRepository: SqliteFocusSessionRepository(database),
+      planningRepository: SqlitePlanningRepository(database),
     );
     _open[name] = _OpenVault(database, services);
     return services;
