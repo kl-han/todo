@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:quadrant_application/quadrant_application.dart';
 import 'package:quadrant_domain/quadrant_domain.dart';
 import 'package:quadrant_store/quadrant_store.dart';
@@ -134,6 +136,33 @@ void main() {
       tasks.update(task.softDelete(DateTime.utc(2026, 2, 1)));
       expect(tasks.query(const TaskQuery(status: StatusFilter.all)), isEmpty);
       expect(tasks.findById(task.id)!.isDeleted, isTrue);
+    });
+  });
+
+  group('backup', () {
+    test('VACUUM INTO snapshot opens as a valid vault with the data',
+        () async {
+      final task = makeTask(title: 'survives backup');
+      final dir = Directory.systemTemp.createTempSync('quadrant-backup-');
+      final backupPath = '${dir.path}/snapshot.sqlite3';
+
+      // In-memory databases cannot VACUUM INTO across some platforms, so
+      // exercise the real file path: copy into a file vault first.
+      final filePath = '${dir.path}/vault.sqlite3';
+      final fileDb = QuadrantDatabase.open(filePath);
+      SqliteTaskRepository(fileDb).insert(task);
+      fileDb.backupTo(backupPath);
+
+      expect(() => fileDb.backupTo(backupPath), throwsA(anything),
+          reason: 'refuses to overwrite an existing backup');
+      fileDb.close();
+
+      final restored = QuadrantDatabase.open(backupPath);
+      final loaded = SqliteTaskRepository(restored).findById(task.id);
+      expect(loaded?.title, 'survives backup');
+      expect(restored.userVersion, schemaVersion);
+      restored.close();
+      dir.deleteSync(recursive: true);
     });
   });
 

@@ -16,14 +16,18 @@ class TasksScreen extends StatefulWidget {
 class _TasksScreenState extends State<TasksScreen> {
   String _status = 'all';
 
+  /// null = every quadrant.
+  int? _quadrant;
+
   @override
   Widget build(BuildContext context) {
     final tasks = widget.state.tasks.where((task) {
-      return switch (_status) {
+      final statusOk = switch (_status) {
         'open' => !task.isCompleted,
         'completed' => task.isCompleted,
         _ => true,
       };
+      return statusOk && (_quadrant == null || task.quadrant == _quadrant);
     }).toList();
 
     return Column(
@@ -40,6 +44,24 @@ class _TasksScreenState extends State<TasksScreen> {
             onSelectionChanged: (selection) =>
                 setState(() => _status = selection.first),
           ),
+        ),
+        Wrap(
+          spacing: 8,
+          children: [
+            FilterChip(
+              key: const ValueKey('quadrant-filter-all'),
+              label: const Text('All quadrants'),
+              selected: _quadrant == null,
+              onSelected: (_) => setState(() => _quadrant = null),
+            ),
+            for (var q = 1; q <= 4; q++)
+              FilterChip(
+                key: ValueKey('quadrant-filter-$q'),
+                label: Text('Q$q'),
+                selected: _quadrant == q,
+                onSelected: (_) => setState(() => _quadrant = q),
+              ),
+          ],
         ),
         Expanded(
           child: tasks.isEmpty

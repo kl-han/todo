@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:quadrant_api_client/quadrant_api_client.dart';
 
 import '../state/app_state.dart';
+import 'undo.dart';
 
 /// Opens the modal task editor. Fits iPhone-sized screens as a full-width
 /// bottom sheet and desktop as a constrained dialog-like sheet.
@@ -58,8 +59,11 @@ class _TaskEditorSheetState extends State<TaskEditorSheet> {
   }
 
   Future<void> _delete() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
     await widget.state.deleteTask(widget.task);
-    if (mounted) Navigator.of(context).pop();
+    navigator.pop();
+    showUndoDeleteSnackBar(messenger, widget.state, widget.task);
   }
 
   @override

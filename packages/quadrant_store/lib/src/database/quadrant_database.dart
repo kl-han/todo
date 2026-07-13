@@ -61,5 +61,22 @@ class QuadrantDatabase {
     }
   }
 
+  /// Writes a consistent snapshot of the vault to [destinationPath] using
+  /// `VACUUM INTO` — safe while the database is in use, produces a
+  /// compact single file, and needs no exclusive lock. Restoration is the
+  /// reverse: stop the backend, replace the vault file with the snapshot,
+  /// restart.
+  void backupTo(String destinationPath) {
+    final destination = File(destinationPath);
+    Directory(destination.parent.path).createSync(recursive: true);
+    if (destination.existsSync()) {
+      throw FileSystemException(
+        'Backup destination already exists; refusing to overwrite',
+        destinationPath,
+      );
+    }
+    db.execute('VACUUM INTO ?', [destinationPath]);
+  }
+
   void close() => db.dispose();
 }
