@@ -5,7 +5,7 @@ info:
     Normative REST contract for Quadrant Todo. The same contract is served
     by the embedded (loopback) backend and the standalone server; both must
     pass the shared conformance suite. Errors use RFC 9457 Problem Details.
-  version: 0.1.0
+  version: 0.2.0
 
 servers:
   - url: http://127.0.0.1:{port}
@@ -19,6 +19,12 @@ servers:
 tags:
   - name: system
     description: Process readiness and capability discovery.
+  - name: tasks
+    description: Task CRUD, soft deletion, restore, and tag assignment.
+  - name: quadrants
+    description: Grouped Eisenhower-matrix read model.
+  - name: tags
+    description: Tag CRUD and progress.
 
 paths:
   /api/v1/health:
@@ -27,9 +33,8 @@ paths:
       tags: [system]
       summary: Process readiness.
       description: >-
-        Reports whether the backend is ready to serve requests. This is the
-        only route that does not require authentication; clients poll it
-        during startup before constructing the typed REST client.
+        The only unauthenticated route; clients poll it during startup and
+        resume before using an authenticated client.
       security: []
       responses:
         "200":
@@ -38,13 +43,278 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Health"
-              examples:
-                embedded:
-                  value:
-                    status: ok
-                    api_version: v1
-                    schema_version: 0
-                    backend: embedded
+
+  /api/v1/vaults/{vault_id}/tasks:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+    get:
+      operationId: listTasks
+      tags: [tasks]
+      summary: Query tasks.
+      parameters:
+        - $ref: "#/components/parameters/StatusFilter"
+        - name: quadrant
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 4 }
+        - name: tag_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [matrix_modified_asc] }
+      responses:
+        "200":
+          description: Matching non-deleted tasks in the requested order.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskList"
+    post:
+      operationId: createTask
+      tags: [tasks]
+      summary: Create a task.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskCreate"
+      responses:
+        "201":
+          description: Created; ETag carries the initial version.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400": { $ref: "#/components/responses/ValidationProblem" }
+
+  /api/v1/vaults/{vault_id}/tasks/{task_id}:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - $ref: "#/components/parameters/TaskId"
+    get:
+      operationId: getTask
+      tags: [tasks]
+      summary: Read one task.
+      responses:
+        "200":
+          description: The task.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Task" }
+        "404": { $ref: "#/components/responses/NotFoundProblem" }
+    patch:
+      operationId: updateTask
+      tags: [tasks]
+      summary: Edit title, notes, status, or classification.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TaskPatch" }
+      responses:
+        "200":
+          description: Updated task with its new version.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Task" }
+        "400": { $ref: "#/components/responses/ValidationProblem" }
+        "404": { $ref: "#/components/responses/NotFoundProblem" }
+        "412": { $ref: "#/components/responses/VersionConflictProblem" }
+    delete:
+      operationId: deleteTask
+      tags: [tasks]
+      summary: Soft-delete a task.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204":
+          description: Deleted; restorable via the restore action.
+        "404": { $ref: "#/components/responses/NotFoundProblem" }
+        "412": { $ref: "#/components/responses/VersionConflictProblem" }
+
+  /api/v1/vaults/{vault_id}/tasks/{task_id}/restore:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      operationId: restoreTask
+      tags: [tasks]
+      summary: Restore a recently deleted task.
+      description: Idempotent; restoring a live task returns it unchanged.
+      responses:
+        "200":
+          description: The restored task.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Task" }
+        "404": { $ref: "#/components/responses/NotFoundProblem" }
+
+  /api/v1/vaults/{vault_id}/tasks/{task_id}/tags/{tag_id}:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - $ref: "#/components/parameters/TaskId"
+      - $ref: "#/components/parameters/TagId"
+    put:
+      operationId: assignTag
+      tags: [tasks]
+      summary: Assign a tag to a task.
+      description: Idempotent; bumps the task version when it changes state.
+      responses:
+        "200":
+          description: The task with its updated tag set.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Task" }
+        "404": { $ref: "#/components/responses/NotFoundProblem" }
+    delete:
+      operationId: removeTag
+      tags: [tasks]
+      summary: Remove a tag from a task.
+      responses:
+        "200":
+          description: The task with its updated tag set.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Task" }
+        "404": { $ref: "#/components/responses/NotFoundProblem" }
+
+  /api/v1/vaults/{vault_id}/quadrants:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+    get:
+      operationId: getQuadrants
+      tags: [quadrants]
+      summary: All four grouped task collections and counts.
+      parameters:
+        - $ref: "#/components/parameters/StatusFilter"
+      responses:
+        "200":
+          description: >-
+            Exactly four groups in quadrant order. Quadrant membership is
+            derived: Q1 urgent+important, Q2 important, Q3 urgent, Q4
+            neither.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QuadrantReport" }
+
+  /api/v1/vaults/{vault_id}/tags:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+    get:
+      operationId: listTags
+      tags: [tags]
+      summary: Tags with completed/total progress.
+      responses:
+        "200":
+          description: Active tags, name-ordered.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TagList" }
+    post:
+      operationId: createTag
+      tags: [tags]
+      summary: Create a tag.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TagCreate" }
+      responses:
+        "201":
+          description: Created tag.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tag" }
+        "400": { $ref: "#/components/responses/ValidationProblem" }
+        "409": { $ref: "#/components/responses/ConflictProblem" }
+
+  /api/v1/vaults/{vault_id}/tags/{tag_id}:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - $ref: "#/components/parameters/TagId"
+    get:
+      operationId: getTag
+      tags: [tags]
+      summary: Read one tag.
+      responses:
+        "200":
+          description: The tag.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tag" }
+        "404": { $ref: "#/components/responses/NotFoundProblem" }
+    patch:
+      operationId: updateTag
+      tags: [tags]
+      summary: Rename or recolor a tag.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TagPatch" }
+      responses:
+        "200":
+          description: Updated tag.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tag" }
+        "400": { $ref: "#/components/responses/ValidationProblem" }
+        "404": { $ref: "#/components/responses/NotFoundProblem" }
+        "409": { $ref: "#/components/responses/ConflictProblem" }
+        "412": { $ref: "#/components/responses/VersionConflictProblem" }
+    delete:
+      operationId: deleteTag
+      tags: [tags]
+      summary: Soft-delete a tag.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204":
+          description: Deleted. Tasks keep existing; the tag disappears
+            from their tag sets.
+        "404": { $ref: "#/components/responses/NotFoundProblem" }
+        "412": { $ref: "#/components/responses/VersionConflictProblem" }
+
+  /api/v1/vaults/{vault_id}/tags/{tag_id}/tasks:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - $ref: "#/components/parameters/TagId"
+    get:
+      operationId: listTagTasks
+      tags: [tags]
+      summary: Sorted, filtered task list for a tag.
+      parameters:
+        - $ref: "#/components/parameters/StatusFilter"
+      responses:
+        "200":
+          description: The tag's tasks in matrix order.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TaskList" }
+        "404": { $ref: "#/components/responses/NotFoundProblem" }
 
 components:
   securitySchemes:
@@ -60,46 +330,208 @@ components:
       scheme: bearer
       description: Standalone backend authentication with a persistent token.
 
+  parameters:
+    VaultId:
+      name: vault_id
+      in: path
+      required: true
+      schema: { type: string }
+      description: Vault name; the embedded backend serves only `default`.
+    TaskId:
+      name: task_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    TagId:
+      name: tag_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    StatusFilter:
+      name: status
+      in: query
+      schema:
+        type: string
+        enum: [open, completed, all]
+        default: open
+      description: >-
+        Soft-deleted entities are never included, whatever the filter.
+    IfMatch:
+      name: If-Match
+      in: header
+      required: false
+      schema: { type: string, example: '"7"' }
+      description: >-
+        Strong ETag of the version the client last saw. When present and
+        stale, the request fails with 412; when absent, the write is
+        unconditional.
+
+  headers:
+    ETag:
+      schema: { type: string, example: '"7"' }
+      description: The resource version in ETag form.
+
+  responses:
+    ValidationProblem:
+      description: The request is malformed or violates a validation rule.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    NotFoundProblem:
+      description: Vault, task, or tag does not exist (or is deleted).
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    ConflictProblem:
+      description: The request contradicts current state (e.g. duplicate
+        active tag name).
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    VersionConflictProblem:
+      description: The resource changed; `current_version` carries the
+        live version.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+
   schemas:
     Health:
       type: object
       required: [status, api_version, schema_version, backend]
       properties:
-        status:
-          type: string
-          enum: [ok]
-        api_version:
-          type: string
-          description: Major API version identifier.
-          enum: [v1]
-        schema_version:
+        status: { type: string, enum: [ok] }
+        api_version: { type: string, enum: [v1] }
+        schema_version: { type: integer }
+        backend: { type: string, enum: [embedded, standalone] }
+
+    Task:
+      type: object
+      required:
+        [id, title, notes, is_urgent, is_important, status, quadrant,
+         completed_at, created_at, updated_at, deleted_at, version, tag_ids]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string, maxLength: 500 }
+        notes: { type: string, maxLength: 10000 }
+        is_urgent: { type: boolean }
+        is_important: { type: boolean }
+        status: { type: string, enum: [open, completed] }
+        quadrant:
           type: integer
-          description: Current database schema version of the backend.
-        backend:
-          type: string
-          description: Which backend kind produced the response.
-          enum: [embedded, standalone]
+          minimum: 1
+          maximum: 4
+          description: Derived from is_urgent/is_important; never stored.
+        completed_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at: { type: [string, "null"], format: date-time }
+        version: { type: integer, minimum: 1 }
+        tag_ids:
+          type: array
+          items: { type: string, format: uuid }
+          description: Active (non-deleted) tags only, name-ordered.
+
+    TaskCreate:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string }
+        notes: { type: string }
+        is_urgent: { type: boolean, default: false }
+        is_important: { type: boolean, default: false }
+
+    TaskPatch:
+      type: object
+      properties:
+        title: { type: string }
+        notes: { type: string }
+        is_urgent: { type: boolean }
+        is_important: { type: boolean }
+        status: { type: string, enum: [open, completed] }
+
+    TaskList:
+      type: object
+      required: [tasks]
+      properties:
+        tasks:
+          type: array
+          items: { $ref: "#/components/schemas/Task" }
+          description: >-
+            Sorted by `is_urgent DESC, is_important DESC, updated_at ASC,
+            id ASC`.
+
+    QuadrantReport:
+      type: object
+      required: [status, quadrants]
+      properties:
+        status: { type: string, enum: [open, completed, all] }
+        quadrants:
+          type: array
+          minItems: 4
+          maxItems: 4
+          items:
+            type: object
+            required: [quadrant, count, tasks]
+            properties:
+              quadrant: { type: integer, minimum: 1, maximum: 4 }
+              count: { type: integer }
+              tasks:
+                type: array
+                items: { $ref: "#/components/schemas/Task" }
+
+    Tag:
+      type: object
+      required: [id, name, color, created_at, updated_at, version, progress]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, maxLength: 100 }
+        color: { type: string, pattern: "^#[0-9a-f]{6}$" }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        version: { type: integer, minimum: 1 }
+        progress:
+          type: object
+          required: [completed, total]
+          properties:
+            completed: { type: integer }
+            total: { type: integer }
+          description: Progress across non-deleted tasks carrying the tag.
+
+    TagCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        color: { type: string, default: "#808080" }
+
+    TagPatch:
+      type: object
+      properties:
+        name: { type: string }
+        color: { type: string }
+
+    TagList:
+      type: object
+      required: [tags]
+      properties:
+        tags:
+          type: array
+          items: { $ref: "#/components/schemas/Tag" }
 
     Problem:
       type: object
       description: RFC 9457 Problem Details error body.
       required: [type, title, status]
       properties:
-        type:
-          type: string
-          format: uri-reference
-          description: >-
-            Problem type URI; registered types live under
-            `api/problem-types/`.
-        title:
-          type: string
-        status:
+        type: { type: string, format: uri-reference }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string, format: uri-reference }
+        current_version:
           type: integer
-        detail:
-          type: string
-        instance:
-          type: string
-          format: uri-reference
+          description: Present on version-conflict problems.
 
 security:
   - localToken: []

@@ -10,6 +10,7 @@ environment:
 dependencies:
   args: ^2.5.0
   quadrant_api_server: ^0.1.0
+  quadrant_application: ^0.1.0
   quadrant_store: ^0.1.0
   shelf: ^1.4.0
 

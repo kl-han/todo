@@ -6,6 +6,7 @@
 library;
 
 export 'src/config.dart';
+export 'src/etag.dart';
 export 'src/middleware/auth_middleware.dart';
 export 'src/problem.dart';
 export 'src/routing/api_router.dart';

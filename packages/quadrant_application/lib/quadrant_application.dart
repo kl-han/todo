@@ -1,5 +1,13 @@
-/// Application layer for Quadrant Todo: commands, queries, and services.
+/// Application layer for Quadrant Todo: commands, queries, services, and
+/// the repository interfaces the store implements.
 ///
-/// Populated in v0.2. Depends only on `quadrant_domain` and repository
-/// interfaces; never on HTTP, SQLite, or Flutter.
+/// Depends only on `quadrant_domain`; never on HTTP, SQLite, or Flutter.
 library;
+
+export 'src/errors.dart';
+export 'src/queries/task_query.dart';
+export 'src/repositories.dart';
+export 'src/services/app_services.dart';
+export 'src/services/quadrant_service.dart';
+export 'src/services/tag_service.dart';
+export 'src/services/task_service.dart';
