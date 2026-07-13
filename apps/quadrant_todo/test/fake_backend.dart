@@ -128,6 +128,15 @@ class FakeBackend {
       task['version'] = (task['version'] as int) + 1;
       return _ok(task);
     }
+    final restoreMatch =
+        RegExp(r'^/api/v1/vaults/default/tasks/([^/]+)/restore$')
+            .firstMatch(path);
+    if (restoreMatch != null && method == 'POST') {
+      final task = tasks.firstWhere((t) => t['id'] == restoreMatch.group(1));
+      task['deleted_at'] = null;
+      task['version'] = (task['version'] as int) + 1;
+      return _ok(task);
+    }
     if (taskMatch != null && method == 'DELETE') {
       final task = tasks.firstWhere((t) => t['id'] == taskMatch.group(1));
       task['deleted_at'] = DateTime.now().toIso8601String();
