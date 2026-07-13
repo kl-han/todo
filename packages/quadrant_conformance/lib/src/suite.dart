@@ -68,6 +68,17 @@ void runBackendContractSuite(
       );
     });
 
+    test('GET /api/v1/capabilities negotiates version and features',
+        () async {
+      final capabilities = await client.capabilities();
+      expect(capabilities.supportsV1, isTrue);
+      expect(capabilities.schemaVersion, greaterThanOrEqualTo(1));
+      expect(
+        capabilities.features,
+        containsAll(['tasks', 'tags', 'quadrants', 'etag-concurrency']),
+      );
+    });
+
     test('GET /api/v1/vaults lists the default vault', () async {
       final vaults = await client.listVaults();
       expect(vaults, contains('default'));
