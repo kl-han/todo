@@ -14,6 +14,19 @@ Map<String, Object?> taskToJson(Task task, List<String> tagIds) => {
       'is_important': task.isImportant,
       'status': task.status.wireName,
       'quadrant': task.quadrant.number,
+      'start_kind': task.schedule.startKind.wireName,
+      // Plain YYYY-MM-DD; date-only values never become instants.
+      'start_date': task.schedule.startDate?.toString(),
+      'start_at_utc': task.schedule.startAtUtc == null
+          ? null
+          : encodeInstant(task.schedule.startAtUtc!),
+      'due_kind': task.schedule.dueKind.wireName,
+      'due_date': task.schedule.dueDate?.toString(),
+      'due_at_utc': task.schedule.dueAtUtc == null
+          ? null
+          : encodeInstant(task.schedule.dueAtUtc!),
+      'timezone_id': task.schedule.timezoneId,
+      'estimated_minutes': task.estimatedMinutes,
       'completed_at':
           task.completedAt == null ? null : encodeInstant(task.completedAt!),
       'created_at': encodeInstant(task.createdAt),

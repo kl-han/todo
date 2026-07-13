@@ -7,6 +7,7 @@ REST API
    conventions
    system-api
    task-api
+   agenda-api
    quadrant-api
    tag-api
    concurrency

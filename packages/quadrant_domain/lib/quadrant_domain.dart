@@ -7,5 +7,8 @@ export 'src/entities/tag.dart';
 export 'src/entities/task.dart';
 export 'src/rules/validation.dart';
 export 'src/value_objects/entity_id.dart';
+export 'src/value_objects/plain_date.dart';
 export 'src/value_objects/quadrant.dart';
+export 'src/value_objects/schedule_kind.dart';
+export 'src/value_objects/task_schedule.dart';
 export 'src/value_objects/task_status.dart';

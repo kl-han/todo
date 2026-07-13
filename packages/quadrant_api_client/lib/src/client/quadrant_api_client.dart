@@ -87,12 +87,23 @@ class QuadrantApiClient {
     return _taskList(json);
   }
 
+  /// Schedule fields follow the TaskCreate contract: pass a side's kind
+  /// with exactly the value it requires (`date` → `startDate`/`dueDate`
+  /// as `YYYY-MM-DD`; `datetime` → the UTC instant plus [timezoneId]).
   Future<TaskDto> createTask({
     String vault = 'default',
     required String title,
     String notes = '',
     bool isUrgent = false,
     bool isImportant = false,
+    String? startKind,
+    String? startDate,
+    DateTime? startAtUtc,
+    String? dueKind,
+    String? dueDate,
+    DateTime? dueAtUtc,
+    String? timezoneId,
+    int? estimatedMinutes,
   }) async =>
       TaskDto.fromJson(await _request(
         'POST',
@@ -102,6 +113,14 @@ class QuadrantApiClient {
           'notes': notes,
           'is_urgent': isUrgent,
           'is_important': isImportant,
+          'start_kind': ?startKind,
+          'start_date': ?startDate,
+          'start_at_utc': ?startAtUtc?.toUtc().toIso8601String(),
+          'due_kind': ?dueKind,
+          'due_date': ?dueDate,
+          'due_at_utc': ?dueAtUtc?.toUtc().toIso8601String(),
+          'timezone_id': ?timezoneId,
+          'estimated_minutes': ?estimatedMinutes,
         },
       ));
 
@@ -111,6 +130,10 @@ class QuadrantApiClient {
 
   /// PATCH with optimistic concurrency: pass [ifMatchVersion] to fail with
   /// a 412 [ProblemDetailsException] when the task changed underneath.
+  ///
+  /// Schedule fields patch by side (see the TaskPatch contract). Pass
+  /// [clearEstimatedMinutes] to send an explicit null and clear the
+  /// estimate.
   Future<TaskDto> updateTask(
     String id, {
     String vault = 'default',
@@ -120,6 +143,15 @@ class QuadrantApiClient {
     bool? isUrgent,
     bool? isImportant,
     String? status,
+    String? startKind,
+    String? startDate,
+    DateTime? startAtUtc,
+    String? dueKind,
+    String? dueDate,
+    DateTime? dueAtUtc,
+    String? timezoneId,
+    int? estimatedMinutes,
+    bool clearEstimatedMinutes = false,
   }) async =>
       TaskDto.fromJson(await _request(
         'PATCH',
@@ -131,6 +163,17 @@ class QuadrantApiClient {
           'is_urgent': ?isUrgent,
           'is_important': ?isImportant,
           'status': ?status,
+          'start_kind': ?startKind,
+          'start_date': ?startDate,
+          'start_at_utc': ?startAtUtc?.toUtc().toIso8601String(),
+          'due_kind': ?dueKind,
+          'due_date': ?dueDate,
+          'due_at_utc': ?dueAtUtc?.toUtc().toIso8601String(),
+          'timezone_id': ?timezoneId,
+          if (clearEstimatedMinutes)
+            'estimated_minutes': null
+          else
+            'estimated_minutes': ?estimatedMinutes,
         },
       ));
 
@@ -186,6 +229,27 @@ class QuadrantApiClient {
     return [
       for (final group in json['quadrants'] as List<Object?>)
         QuadrantGroupDto.fromJson(group as Map<String, Object?>),
+    ];
+  }
+
+  // ---- Agenda ----
+
+  /// GET /api/v1/vaults/{vault}/agenda — days between two task-local
+  /// dates (inclusive), formatted `YYYY-MM-DD`.
+  Future<List<AgendaDayDto>> agenda({
+    String vault = 'default',
+    required String from,
+    required String to,
+    String status = 'open',
+  }) async {
+    final json = await _request(
+      'GET',
+      '/api/v1/vaults/$vault/agenda',
+      query: {'from': from, 'to': to, 'status': status},
+    );
+    return [
+      for (final day in json['days'] as List<Object?>)
+        AgendaDayDto.fromJson(day as Map<String, Object?>),
     ];
   }
 

@@ -45,11 +45,14 @@ void mountVaultRoutes(Router router, ApiServerConfig config) {
   router.post('/api/v1/vaults/<vaultId>/tasks', (Request request) async {
     final services = vault(request);
     final body = await readJsonObject(request);
+    final estimatedMinutes = optional<int>(body, 'estimated_minutes');
     final task = services.tasks.create(
       title: required_<String>(body, 'title'),
       notes: optional<String>(body, 'notes') ?? '',
       isUrgent: optional<bool>(body, 'is_urgent') ?? false,
       isImportant: optional<bool>(body, 'is_important') ?? false,
+      schedule: _parseSchedulePatch(body).applyTo(const TaskSchedule.none()),
+      estimatedMinutes: estimatedMinutes,
     );
     return taskResponse(services, task, status: 201);
   });
@@ -65,6 +68,11 @@ void mountVaultRoutes(Router router, ApiServerConfig config) {
     final services = vault(request);
     final body = await readJsonObject(request);
     final statusName = optional<String>(body, 'status');
+    // Explicit JSON null clears estimated_minutes; an absent key leaves
+    // it unchanged.
+    final estimatedMinutes = body.containsKey('estimated_minutes')
+        ? optional<int>(body, 'estimated_minutes')
+        : null;
     final task = services.tasks.update(
       request.params['taskId']!,
       expectedVersion: expectedVersionFrom(request),
@@ -73,6 +81,10 @@ void mountVaultRoutes(Router router, ApiServerConfig config) {
       isUrgent: optional<bool>(body, 'is_urgent'),
       isImportant: optional<bool>(body, 'is_important'),
       status: statusName == null ? null : _parseStatus(statusName),
+      schedule: _parseSchedulePatch(body),
+      estimatedMinutes: body.containsKey('estimated_minutes')
+          ? () => estimatedMinutes
+          : null,
     );
     return taskResponse(services, task);
   });
@@ -111,6 +123,40 @@ void mountVaultRoutes(Router router, ApiServerConfig config) {
       request.params['tagId']!,
     );
     return taskResponse(services, task);
+  });
+
+  // ---- Agenda read model ----
+
+  router.get('/api/v1/vaults/<vaultId>/agenda', (Request request) {
+    final services = vault(request);
+    final params = request.url.queryParameters;
+    final report = services.agenda.agenda(
+      from: _parseDateParam(params, 'from'),
+      to: _parseDateParam(params, 'to'),
+      status: _parseStatusFilter(params['status'] ?? 'open'),
+    );
+    return _json(200, {
+      'from': report.from.toString(),
+      'to': report.to.toString(),
+      'status': report.status,
+      'days': [
+        for (final day in report.days)
+          {
+            'date': day.date.toString(),
+            'entries': [
+              for (final entry in day.entries)
+                {
+                  'kind': entry.kind.wireName,
+                  'time_local': entry.timeLocal,
+                  'task': taskToJson(
+                    entry.task,
+                    services.tasks.tagIdsOf(entry.task.id),
+                  ),
+                },
+            ],
+          },
+      ],
+    });
   });
 
   // ---- Quadrant read model ----
@@ -265,4 +311,62 @@ TaskSort _parseSort(String value) {
   } on ArgumentError {
     throw MalformedRequestError('Unknown sort "$value".');
   }
+}
+
+/// Parses the schedule fields shared by TaskCreate and TaskPatch. The
+/// cross-field rules are enforced by the domain after merging; this only
+/// converts wire values, with 400s for shapes that cannot parse.
+SchedulePatch _parseSchedulePatch(Map<String, Object?> body) => SchedulePatch(
+      startKind: _parseKind(optional<String>(body, 'start_kind')),
+      startDate: _parseDate(optional<String>(body, 'start_date'), 'start_date'),
+      startAtUtc:
+          _parseInstant(optional<String>(body, 'start_at_utc'), 'start_at_utc'),
+      dueKind: _parseKind(optional<String>(body, 'due_kind')),
+      dueDate: _parseDate(optional<String>(body, 'due_date'), 'due_date'),
+      dueAtUtc:
+          _parseInstant(optional<String>(body, 'due_at_utc'), 'due_at_utc'),
+      timezoneId: optional<String>(body, 'timezone_id'),
+    );
+
+ScheduleKind? _parseKind(String? value) {
+  if (value == null) return null;
+  try {
+    return ScheduleKind.fromWire(value);
+  } on ArgumentError {
+    throw MalformedRequestError('Unknown schedule kind "$value".');
+  }
+}
+
+PlainDate? _parseDate(String? value, String field) {
+  if (value == null) return null;
+  try {
+    return PlainDate.parse(value);
+  } on DomainValidationError catch (error) {
+    throw MalformedRequestError('Field "$field": ${error.message}');
+  }
+}
+
+PlainDate _parseDateParam(Map<String, String> params, String name) {
+  final value = params[name];
+  if (value == null) {
+    throw MalformedRequestError('Query parameter "$name" is required.');
+  }
+  return _parseDate(value, name)!;
+}
+
+/// Instants must carry an explicit UTC designator or offset; a naive
+/// local time would silently mean "server timezone", which no request is
+/// allowed to depend on.
+DateTime? _parseInstant(String? value, String field) {
+  if (value == null) return null;
+  final hasDesignator =
+      value.endsWith('Z') || RegExp(r'[+-]\d{2}:\d{2}$').hasMatch(value);
+  final DateTime? parsed = DateTime.tryParse(value);
+  if (!hasDesignator || parsed == null) {
+    throw MalformedRequestError(
+      'Field "$field" must be an RFC 3339 instant with a UTC designator '
+      'or offset.',
+    );
+  }
+  return parsed.toUtc();
 }

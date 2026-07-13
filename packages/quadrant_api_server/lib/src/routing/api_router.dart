@@ -28,6 +28,8 @@ Handler buildApiHandler(ApiServerConfig config) {
             'vaults',
             'etag-concurrency',
             'soft-delete-restore',
+            'temporal',
+            'agenda',
           ],
         }),
         headers: {'content-type': 'application/json'},

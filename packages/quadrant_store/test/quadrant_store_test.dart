@@ -77,6 +77,82 @@ void main() {
       expect(loaded.version, 7);
     });
 
+    test('round-trips schedule fields', () {
+      final original = Task(
+        id: EntityId.generate(),
+        title: 'scheduled',
+        notes: '',
+        isUrgent: false,
+        isImportant: false,
+        schedule: TaskSchedule(
+          startKind: ScheduleKind.date,
+          startDate: PlainDate.parse('2026-07-19'),
+          dueKind: ScheduleKind.datetime,
+          dueAtUtc: DateTime.utc(2026, 7, 20, 20),
+          timezoneId: 'America/Chicago',
+        ),
+        estimatedMinutes: 90,
+        createdAt: DateTime.utc(2026, 1, 1),
+        updatedAt: DateTime.utc(2026, 1, 1),
+      );
+      tasks.insert(original);
+      final loaded = tasks.findById(original.id)!;
+      expect(loaded.schedule.startKind, ScheduleKind.date);
+      expect(loaded.schedule.startDate, PlainDate.parse('2026-07-19'));
+      expect(loaded.schedule.startAtUtc, isNull);
+      expect(loaded.schedule.dueKind, ScheduleKind.datetime);
+      expect(loaded.schedule.dueAtUtc, DateTime.utc(2026, 7, 20, 20));
+      expect(loaded.schedule.timezoneId, 'America/Chicago');
+      expect(loaded.estimatedMinutes, 90);
+    });
+
+    test('stores date-only values as plain dates, not instants', () {
+      final original = Task(
+        id: EntityId.generate(),
+        title: 'date-only',
+        notes: '',
+        isUrgent: false,
+        isImportant: false,
+        schedule: TaskSchedule(
+          dueKind: ScheduleKind.date,
+          dueDate: PlainDate.parse('2026-07-20'),
+        ),
+        createdAt: DateTime.utc(2026, 1, 1),
+        updatedAt: DateTime.utc(2026, 1, 1),
+      );
+      tasks.insert(original);
+      final raw = db.db
+          .select('SELECT due_date FROM tasks WHERE id = ?', [original.id])
+          .first['due_date'];
+      expect(raw, '2026-07-20');
+    });
+
+    test('scheduled() returns only scheduled, status-matching tasks', () {
+      makeTask(title: 'unscheduled');
+      final due = Task(
+        id: EntityId.generate(),
+        title: 'due',
+        notes: '',
+        isUrgent: false,
+        isImportant: false,
+        schedule: TaskSchedule(
+          dueKind: ScheduleKind.date,
+          dueDate: PlainDate.parse('2026-07-20'),
+        ),
+        createdAt: DateTime.utc(2026, 1, 1),
+        updatedAt: DateTime.utc(2026, 1, 1),
+      );
+      tasks.insert(due);
+      tasks.update(due.complete(DateTime.utc(2026, 1, 2)));
+
+      expect(tasks.scheduled(StatusFilter.open), isEmpty);
+      expect(
+        tasks.scheduled(StatusFilter.completed).map((t) => t.title),
+        ['due'],
+      );
+      expect(tasks.scheduled(StatusFilter.all), hasLength(1));
+    });
+
     test('applies the matrix_modified_asc sort', () {
       final q4 = makeTask(title: 'q4');
       final q1old = makeTask(

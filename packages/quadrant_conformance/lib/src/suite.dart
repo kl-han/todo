@@ -255,6 +255,113 @@ void runBackendContractSuite(
     });
   });
 
+  group('temporal contract', () {
+    test('date-only schedule round-trips as a plain date', () async {
+      final created = await client.createTask(
+        title: 'temporal-date',
+        dueKind: 'date',
+        dueDate: '2026-07-20',
+      );
+      expect(created.dueKind, 'date');
+      expect(created.dueDate, '2026-07-20');
+      expect(created.dueAtUtc, isNull);
+      expect(created.timezoneId, isNull);
+
+      final fetched = await client.getTask(created.id);
+      expect(fetched.dueDate, '2026-07-20',
+          reason: 'a date-only value must never shift through storage');
+    });
+
+    test('datetime schedule keeps the UTC instant and timezone', () async {
+      final created = await client.createTask(
+        title: 'temporal-instant',
+        startKind: 'datetime',
+        startAtUtc: DateTime.utc(2026, 7, 20, 20),
+        timezoneId: 'America/Chicago',
+        estimatedMinutes: 90,
+      );
+      expect(created.startAtUtc, DateTime.utc(2026, 7, 20, 20));
+      expect(created.timezoneId, 'America/Chicago');
+      expect(created.estimatedMinutes, 90);
+    });
+
+    test('schedule patch merges by side and clears with kind none',
+        () async {
+      final created = await client.createTask(
+        title: 'temporal-patch',
+        dueKind: 'date',
+        dueDate: '2026-07-20',
+      );
+      final moved = await client.updateTask(created.id,
+          dueDate: '2026-08-01');
+      expect(moved.dueKind, 'date');
+      expect(moved.dueDate, '2026-08-01');
+
+      final cleared = await client.updateTask(moved.id, dueKind: 'none');
+      expect(cleared.dueKind, 'none');
+      expect(cleared.dueDate, isNull);
+    });
+
+    test('inconsistent schedules are 400 validation problems', () async {
+      await expectLater(
+        client.createTask(
+          title: 'temporal-invalid',
+          dueKind: 'datetime',
+          dueAtUtc: DateTime.utc(2026, 7, 20, 20),
+          // timezone_id missing
+        ),
+        throwsA(_problem(400, 'problems/validation')),
+      );
+      await expectLater(
+        client.createTask(
+          title: 'temporal-bad-tz',
+          dueKind: 'datetime',
+          dueAtUtc: DateTime.utc(2026, 7, 20, 20),
+          timezoneId: 'Mars/Olympus_Mons',
+        ),
+        throwsA(_problem(400, 'problems/validation')),
+      );
+    });
+
+    test('agenda groups by task-local date across the UTC boundary',
+        () async {
+      // 03:30 UTC on 2032-01-02 is 21:30 on 2032-01-01 in Chicago; the
+      // far-future date keeps this test isolated from other suite tasks.
+      await client.createTask(
+        title: 'agenda-allday',
+        dueKind: 'date',
+        dueDate: '2032-01-01',
+      );
+      await client.createTask(
+        title: 'agenda-evening',
+        dueKind: 'datetime',
+        dueAtUtc: DateTime.utc(2032, 1, 2, 3, 30),
+        timezoneId: 'America/Chicago',
+      );
+
+      final days = await client.agenda(from: '2032-01-01', to: '2032-01-01');
+      expect(days, hasLength(1));
+      expect(days.single.date, '2032-01-01');
+      expect(
+        days.single.entries.map((e) => e.timeLocal),
+        [null, '21:30'],
+        reason: 'all-day first, then timed entries',
+      );
+    });
+
+    test('agenda rejects inverted ranges with a 400 problem', () async {
+      await expectLater(
+        client.agenda(from: '2026-07-21', to: '2026-07-20'),
+        throwsA(_problem(400, 'problems/validation')),
+      );
+    });
+
+    test('capabilities advertise temporal and agenda features', () async {
+      final capabilities = await client.capabilities();
+      expect(capabilities.features, containsAll(['temporal', 'agenda']));
+    });
+  });
+
   group('tag contract', () {
     test('tag lifecycle: create, progress, rename, delete', () async {
       final tag = await client.createTag(name: 'suite-lifecycle');

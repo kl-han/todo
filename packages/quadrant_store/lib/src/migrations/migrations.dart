@@ -42,6 +42,20 @@ const List<String> migrations = [
     ON tasks(is_urgent DESC, is_important DESC, updated_at ASC, id ASC)
     WHERE deleted_at IS NULL;
   ''',
+
+  // v1 -> v2: temporal foundation (v1.1). Date-only values are stored as
+  // plain YYYY-MM-DD text, never as midnight-UTC instants; instants use
+  // the fixed-width UTC codec shared with the other timestamp columns.
+  '''
+  ALTER TABLE tasks ADD COLUMN start_kind TEXT NOT NULL DEFAULT 'none';
+  ALTER TABLE tasks ADD COLUMN start_date TEXT;
+  ALTER TABLE tasks ADD COLUMN start_at_utc TEXT;
+  ALTER TABLE tasks ADD COLUMN due_kind TEXT NOT NULL DEFAULT 'none';
+  ALTER TABLE tasks ADD COLUMN due_date TEXT;
+  ALTER TABLE tasks ADD COLUMN due_at_utc TEXT;
+  ALTER TABLE tasks ADD COLUMN timezone_id TEXT;
+  ALTER TABLE tasks ADD COLUMN estimated_minutes INTEGER;
+  ''',
 ];
 
 /// Current schema version; reported by `/api/v1/health`.

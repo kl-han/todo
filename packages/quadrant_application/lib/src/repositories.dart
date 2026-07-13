@@ -11,6 +11,11 @@ abstract interface class TaskRepository {
   /// Non-deleted tasks matching [query], in the query's sort order.
   List<Task> query(TaskQuery query);
 
+  /// Non-deleted tasks with at least one scheduled side (start or due),
+  /// filtered by [status]. Order is unspecified; the agenda read model
+  /// re-sorts by task-local date.
+  List<Task> scheduled(StatusFilter status);
+
   void insert(Task task);
 
   /// Persists a new state of an existing task (matched by id).

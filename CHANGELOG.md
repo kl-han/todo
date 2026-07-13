@@ -2,6 +2,26 @@
 
 All notable changes; one entry per squash-merged milestone.
 
+## v1.1.0 — Temporal foundation
+
+- Tasks carry an optional **start** and **due** schedule: each side is
+  `none`, a plain date (`YYYY-MM-DD`, never stored as midnight UTC), or a
+  UTC instant with a task-level IANA `timezone_id`; plus optional
+  `estimated_minutes`. Scheduling never changes the quadrant.
+- New **agenda read model** (`GET /vaults/{id}/agenda?from&to`): scheduled
+  tasks grouped by task-local calendar date, DST-correct via the tz
+  database, identical on both backends.
+- `PATCH` merges schedules by side; providing a kind resets that side;
+  clearing the last datetime side sheds an inherited timezone;
+  `estimated_minutes: null` clears the estimate.
+- Schema v2 migration (additive columns) with its frozen released-schema
+  fixture; API document 1.1.0 with additive `Task`/`TaskCreate`/`TaskPatch`
+  fields and the `AgendaReport` schema; capabilities now advertise
+  `temporal` and `agenda`.
+- Conformance suite extended with the temporal contract (round-trips,
+  side-merging, validation problems, agenda grouping across the UTC
+  boundary).
+
 ## v1.0.0 — Stable release
 
 - **v1 REST contract frozen**: additive-only from here; upgrade and

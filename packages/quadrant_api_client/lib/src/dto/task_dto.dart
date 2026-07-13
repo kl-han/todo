@@ -12,6 +12,14 @@ class TaskDto {
     required this.tagIds,
     required this.createdAt,
     required this.updatedAt,
+    this.startKind = 'none',
+    this.startDate,
+    this.startAtUtc,
+    this.dueKind = 'none',
+    this.dueDate,
+    this.dueAtUtc,
+    this.timezoneId,
+    this.estimatedMinutes,
     this.completedAt,
     this.deletedAt,
   });
@@ -28,6 +36,18 @@ class TaskDto {
         tagIds: (json['tag_ids'] as List<Object?>).cast<String>(),
         createdAt: DateTime.parse(json['created_at'] as String),
         updatedAt: DateTime.parse(json['updated_at'] as String),
+        startKind: (json['start_kind'] as String?) ?? 'none',
+        startDate: json['start_date'] as String?,
+        startAtUtc: json['start_at_utc'] == null
+            ? null
+            : DateTime.parse(json['start_at_utc'] as String),
+        dueKind: (json['due_kind'] as String?) ?? 'none',
+        dueDate: json['due_date'] as String?,
+        dueAtUtc: json['due_at_utc'] == null
+            ? null
+            : DateTime.parse(json['due_at_utc'] as String),
+        timezoneId: json['timezone_id'] as String?,
+        estimatedMinutes: json['estimated_minutes'] as int?,
         completedAt: json['completed_at'] == null
             ? null
             : DateTime.parse(json['completed_at'] as String),
@@ -47,6 +67,29 @@ class TaskDto {
 
   /// Derived quadrant number, 1–4.
   final int quadrant;
+
+  /// `none`, `date`, or `datetime`.
+  final String startKind;
+
+  /// Plain `YYYY-MM-DD` task-local date; set iff [startKind] is `date`.
+  final String? startDate;
+
+  /// UTC instant; set iff [startKind] is `datetime`.
+  final DateTime? startAtUtc;
+
+  /// `none`, `date`, or `datetime`.
+  final String dueKind;
+
+  /// Plain `YYYY-MM-DD` task-local date; set iff [dueKind] is `date`.
+  final String? dueDate;
+
+  /// UTC instant; set iff [dueKind] is `datetime`.
+  final DateTime? dueAtUtc;
+
+  /// IANA timezone of the task's date-time values.
+  final String? timezoneId;
+
+  final int? estimatedMinutes;
 
   final int version;
   final List<String> tagIds;
@@ -79,4 +122,46 @@ class QuadrantGroupDto {
   final int quadrant;
   final int count;
   final List<TaskDto> tasks;
+}
+
+/// One entry of one agenda day: which schedule side of which task.
+class AgendaEntryDto {
+  const AgendaEntryDto({
+    required this.kind,
+    required this.task,
+    this.timeLocal,
+  });
+
+  factory AgendaEntryDto.fromJson(Map<String, Object?> json) =>
+      AgendaEntryDto(
+        kind: json['kind'] as String,
+        timeLocal: json['time_local'] as String?,
+        task: TaskDto.fromJson(json['task'] as Map<String, Object?>),
+      );
+
+  /// `start` or `due`.
+  final String kind;
+
+  /// `HH:MM` in the task's timezone; null for all-day entries.
+  final String? timeLocal;
+
+  final TaskDto task;
+}
+
+/// One task-local calendar date of the agenda read model.
+class AgendaDayDto {
+  const AgendaDayDto({required this.date, required this.entries});
+
+  factory AgendaDayDto.fromJson(Map<String, Object?> json) => AgendaDayDto(
+        date: json['date'] as String,
+        entries: [
+          for (final entry in json['entries'] as List<Object?>)
+            AgendaEntryDto.fromJson(entry as Map<String, Object?>),
+        ],
+      );
+
+  /// Plain `YYYY-MM-DD` task-local date.
+  final String date;
+
+  final List<AgendaEntryDto> entries;
 }

@@ -1,4 +1,5 @@
 import '../repositories.dart';
+import 'agenda_service.dart';
 import 'quadrant_service.dart';
 import 'tag_service.dart';
 import 'task_service.dart';
@@ -12,9 +13,11 @@ class AppServices {
     DateTime Function()? clock,
   })  : tasks = TaskService(taskRepository, tagRepository, clock: clock),
         tags = TagService(tagRepository, taskRepository, clock: clock),
-        quadrants = QuadrantService(taskRepository);
+        quadrants = QuadrantService(taskRepository),
+        agenda = AgendaService(taskRepository);
 
   final TaskService tasks;
   final TagService tags;
   final QuadrantService quadrants;
+  final AgendaService agenda;
 }

@@ -54,11 +54,30 @@ class SqliteTaskRepository implements TaskRepository {
   }
 
   @override
+  List<Task> scheduled(StatusFilter status) {
+    final conditions = <String>[
+      'deleted_at IS NULL',
+      "(start_kind != 'none' OR due_kind != 'none')",
+      switch (status) {
+        StatusFilter.open => 'completed_at IS NULL',
+        StatusFilter.completed => 'completed_at IS NOT NULL',
+        StatusFilter.all => '1 = 1',
+      },
+    ];
+    final rows = _db.select(
+      'SELECT * FROM tasks WHERE ${conditions.join(' AND ')}',
+    );
+    return [for (final row in rows) _fromRow(row)];
+  }
+
+  @override
   void insert(Task task) {
     _db.execute(
       'INSERT INTO tasks (id, title, notes, is_urgent, is_important, '
+      'start_kind, start_date, start_at_utc, due_kind, due_date, '
+      'due_at_utc, timezone_id, estimated_minutes, '
       'completed_at, created_at, updated_at, deleted_at, version) '
-      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       _toRow(task),
     );
   }
@@ -67,8 +86,10 @@ class SqliteTaskRepository implements TaskRepository {
   void update(Task task) {
     _db.execute(
       'UPDATE tasks SET title = ?, notes = ?, is_urgent = ?, '
-      'is_important = ?, completed_at = ?, created_at = ?, updated_at = ?, '
-      'deleted_at = ?, version = ? WHERE id = ?',
+      'is_important = ?, start_kind = ?, start_date = ?, start_at_utc = ?, '
+      'due_kind = ?, due_date = ?, due_at_utc = ?, timezone_id = ?, '
+      'estimated_minutes = ?, completed_at = ?, created_at = ?, '
+      'updated_at = ?, deleted_at = ?, version = ? WHERE id = ?',
       [..._toRow(task).sublist(1), task.id],
     );
   }
@@ -113,6 +134,18 @@ class SqliteTaskRepository implements TaskRepository {
         task.notes,
         _flag(task.isUrgent),
         _flag(task.isImportant),
+        task.schedule.startKind.wireName,
+        task.schedule.startDate?.toString(),
+        task.schedule.startAtUtc == null
+            ? null
+            : encodeTime(task.schedule.startAtUtc!),
+        task.schedule.dueKind.wireName,
+        task.schedule.dueDate?.toString(),
+        task.schedule.dueAtUtc == null
+            ? null
+            : encodeTime(task.schedule.dueAtUtc!),
+        task.schedule.timezoneId,
+        task.estimatedMinutes,
         task.completedAt == null ? null : encodeTime(task.completedAt!),
         encodeTime(task.createdAt),
         encodeTime(task.updatedAt),
@@ -126,10 +159,23 @@ class SqliteTaskRepository implements TaskRepository {
         notes: row['notes'] as String,
         isUrgent: (row['is_urgent'] as int) != 0,
         isImportant: (row['is_important'] as int) != 0,
+        schedule: TaskSchedule(
+          startKind: ScheduleKind.fromWire(row['start_kind'] as String),
+          startDate: _dateOrNull(row['start_date']),
+          startAtUtc: decodeTimeOrNull(row['start_at_utc']),
+          dueKind: ScheduleKind.fromWire(row['due_kind'] as String),
+          dueDate: _dateOrNull(row['due_date']),
+          dueAtUtc: decodeTimeOrNull(row['due_at_utc']),
+          timezoneId: row['timezone_id'] as String?,
+        ),
+        estimatedMinutes: row['estimated_minutes'] as int?,
         completedAt: decodeTimeOrNull(row['completed_at']),
         createdAt: decodeTime(row['created_at'] as String),
         updatedAt: decodeTime(row['updated_at'] as String),
         deletedAt: decodeTimeOrNull(row['deleted_at']),
         version: row['version'] as int,
       );
+
+  static PlainDate? _dateOrNull(Object? value) =>
+      value == null ? null : PlainDate.parse(value as String);
 }
