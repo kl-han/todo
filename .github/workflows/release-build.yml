@@ -1,0 +1,53 @@
+name: Release build
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  server:
+    name: Standalone server
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - run: dart pub get
+      - run: make dist-server
+      - run: tar -C build/server -czf quadrant-server-linux-x64.tar.gz quadrant_server
+      - uses: actions/upload-artifact@v4
+        with:
+          name: quadrant-server-linux-x64
+          path: quadrant-server-linux-x64.tar.gz
+          if-no-files-found: error
+
+  linux:
+    name: Linux desktop app
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang \
+            cmake \
+            libgtk-3-dev \
+            liblzma-dev \
+            ninja-build \
+            pkg-config
+      - run: make dist-linux
+      - run: tar -C apps/quadrant_todo/build/linux/x64/release -czf quadrant-todo-linux-x64.tar.gz bundle
+      - uses: actions/upload-artifact@v4
+        with:
+          name: quadrant-todo-linux-x64
+          path: quadrant-todo-linux-x64.tar.gz
+          if-no-files-found: error
