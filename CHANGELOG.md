@@ -2,6 +2,22 @@
 
 All notable changes; one entry per squash-merged milestone.
 
+## v1.5.0 — Android usage import core
+
+- Pure `AndroidUsageImporter` in `quadrant_usage`: converts
+  `UsageStatsManager` event batches (resume/pause, screen on/off,
+  shutdown) into `confidence: derived` intervals, excluding screen-off
+  periods, repairing lost pauses, ignoring unknown kinds, sorting
+  out-of-order delivery, and applying the privacy policy at import time.
+- **Idempotent by watermark**: overlapping re-imports (delayed
+  WorkManager runs, re-import on app open) skip already-imported events;
+  a span still open at batch end is deferred and re-imported completely
+  later — never lost, never duplicated. Revoked Usage Access yields
+  empty batches and preserves the watermark.
+- Docs: new `platforms/android/usage-import` page; onboarding UI, the
+  Kotlin adapter, WorkManager scheduling, and vendor precision checks
+  are tracked for device-side validation.
+
 ## v1.4.0 — Usage tracking core
 
 - New pure **`quadrant_usage`** package: the event-driven interval state

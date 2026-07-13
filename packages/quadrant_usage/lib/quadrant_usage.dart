@@ -7,6 +7,7 @@
 library;
 
 export 'src/aggregation/daily_aggregator.dart';
+export 'src/android/android_usage_importer.dart';
 export 'src/events/usage_event.dart';
 export 'src/intervals/usage_interval.dart';
 export 'src/intervals/usage_recorder.dart';

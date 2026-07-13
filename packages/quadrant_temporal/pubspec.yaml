@@ -1,6 +1,6 @@
 name: quadrant_temporal
 description: Recurrence rules and occurrence generation for Quadrant Todo.
-version: 1.4.0
+version: 1.5.0
 publish_to: none
 resolution: workspace
 
