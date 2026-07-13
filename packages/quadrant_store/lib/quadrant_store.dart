@@ -12,3 +12,5 @@ export 'src/repositories/sqlite_recurrence_repository.dart';
 export 'src/repositories/sqlite_reminder_repository.dart';
 export 'src/repositories/sqlite_tag_repository.dart';
 export 'src/repositories/sqlite_task_repository.dart';
+export 'src/usage/sqlite_usage_repository.dart';
+export 'src/usage/usage_database.dart';

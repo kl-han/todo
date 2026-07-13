@@ -6,6 +6,8 @@
 /// only, no root, no raw input access.
 library;
 
+export 'src/collectors/sway_collector.dart';
+export 'src/collectors/usage_tracker.dart';
 export 'src/gateway/agent_scheduler.dart';
 export 'src/gateway/desktop_notifier.dart';
 export 'src/lifecycle/agent_credential.dart';

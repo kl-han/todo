@@ -70,6 +70,28 @@ Tables
 
    .. versionadded:: 1.3
 
+usage.sqlite3
+-------------
+
+.. versionadded:: 1.4
+
+A separate database (ADR-0007) with its own migration chain
+(``usageMigrations``, currently version **1**), its own retention, and
+independent deletability:
+
+``usage_intervals``
+   Raw spans: ``id``, ``device_id``, ``platform``, ``application_id``,
+   ``application_name``, ``category_id?``, ``started_at``/``ended_at``,
+   ``active_seconds`` (monotonic), ``idle_seconds``, ``source``,
+   ``confidence``, ``window_title?`` (null unless opted in). Pruned
+   after the configured raw retention (default 7 days).
+
+``usage_daily``
+   ``(date, device_id, application_id)`` composite PK with summed
+   ``active_seconds``/``idle_seconds``, ``focus_session_seconds``,
+   ``interval_count``. Small, less sensitive, retained long-term; the
+   only shape eligible for any future remote upload.
+
 Conventions
 -----------
 

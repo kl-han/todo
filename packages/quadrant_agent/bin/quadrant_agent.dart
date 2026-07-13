@@ -68,6 +68,9 @@ Future<int> _run(ArgResults options) async {
   final credential = await AgentCredential.load('$configDir/agent-token');
   final host = AgentHost(
     databasePath: '$dataDir/default.sqlite3',
+    usageDatabasePath: '$dataDir/usage.sqlite3',
+    trackingConfigPath: '$configDir/agent-tracking.json',
+    deviceId: Platform.localHostname,
     token: credential.token,
     port: int.parse(options['port'] as String),
     tickInterval: Duration(seconds: int.parse(options['tick-seconds'] as String)),

@@ -2,6 +2,30 @@
 
 All notable changes; one entry per squash-merged milestone.
 
+## v1.4.0 — Usage tracking core
+
+- New pure **`quadrant_usage`** package: the event-driven interval state
+  machine (focus change / idle / lock / collector stop — no polling),
+  monotonic-clock durations (wall-clock jumps can't distort them,
+  sub-second flicker dropped), privacy policy gating, and daily
+  aggregation.
+- **Privacy by default**: tracking off until enabled, app identity only,
+  window titles behind a separate opt-in, exclusion list enforced at
+  record time, private mode closes the open interval immediately, pause
+  auto-expires and never survives a restart while consent does.
+- Separate **`usage.sqlite3`** (ADR-0007) with its own migrations:
+  raw intervals (pruned after a configurable 7-day retention) and
+  long-term `usage_daily` aggregates; delete-day/delete-all never touch
+  tasks.
+- **Sway IPC collector**: speaks the real i3-ipc protocol over
+  `$SWAYSOCK` (SUBSCRIBE window/shutdown + GET_TREE seeding), records
+  `app_id` only, attaches only when tracking is enabled; unit-tested
+  against a protocol-faithful fake compositor socket.
+- Agent API additions (loopback, agent-only): `/agent/tracking[/*]`,
+  `/agent/usage/intervals`, `/agent/usage/daily`, `DELETE /agent/usage`.
+- Windows collector remains contract + docs pending real hardware, per
+  the acceptance checklist.
+
 ## v1.3.0 — Focus sessions and the quadrant-agent
 
 - **Focus (Pomodoro) sessions** owned by the backend: `running → paused →
