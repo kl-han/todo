@@ -1,0 +1,16 @@
+# Dart / Flutter
+.dart_tool/
+build/
+*.iml
+
+# Sphinx
+docs/build/
+
+# Python
+__pycache__/
+.venv/
+
+# Local databases and logs
+*.sqlite3
+*.sqlite3-journal
+*.log

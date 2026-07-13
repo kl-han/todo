@@ -1,0 +1,14 @@
+name: quadrant_api_client
+description: Typed REST client for the Quadrant Todo API.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  http: ^1.2.0
+
+dev_dependencies:
+  test: ^1.25.0

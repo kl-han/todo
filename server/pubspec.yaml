@@ -1,0 +1,17 @@
+name: quadrant_server
+description: Standalone Quadrant Todo backend server.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  args: ^2.5.0
+  quadrant_api_server: ^0.1.0
+  quadrant_store: ^0.1.0
+  shelf: ^1.4.0
+
+dev_dependencies:
+  test: ^1.25.0

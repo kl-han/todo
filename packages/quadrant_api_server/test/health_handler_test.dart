@@ -1,0 +1,85 @@
+import 'dart:convert';
+
+import 'package:quadrant_api_server/quadrant_api_server.dart';
+import 'package:shelf/shelf.dart';
+import 'package:test/test.dart';
+
+Request _get(String path, {Map<String, String>? headers}) =>
+    Request('GET', Uri.parse('http://localhost$path'), headers: headers);
+
+void main() {
+  group('GET /api/v1/health', () {
+    test('returns readiness without authentication', () async {
+      final handler = buildApiHandler(
+        const ApiServerConfig(
+          backendKind: BackendKind.embedded,
+          authToken: 'secret',
+        ),
+      );
+
+      final response = await handler(_get('/api/v1/health'));
+
+      expect(response.statusCode, 200);
+      expect(response.headers['content-type'], contains('application/json'));
+      final body = jsonDecode(await response.readAsString());
+      expect(body, {
+        'status': 'ok',
+        'api_version': 'v1',
+        'schema_version': 0,
+        'backend': 'embedded',
+      });
+    });
+
+    test('reports the standalone backend kind', () async {
+      final handler = buildApiHandler(
+        const ApiServerConfig(backendKind: BackendKind.standalone),
+      );
+
+      final response = await handler(_get('/api/v1/health'));
+      final body = jsonDecode(await response.readAsString());
+      expect(body['backend'], 'standalone');
+    });
+  });
+
+  group('authentication', () {
+    final handler = buildApiHandler(
+      const ApiServerConfig(
+        backendKind: BackendKind.embedded,
+        authToken: 'secret',
+      ),
+    );
+
+    test('rejects missing credentials with a 401 problem', () async {
+      final response = await handler(_get('/api/v1/vaults'));
+
+      expect(response.statusCode, 401);
+      expect(
+        response.headers['content-type'],
+        contains('application/problem+json'),
+      );
+      final body = jsonDecode(await response.readAsString());
+      expect(body['type'], 'problems/unauthenticated');
+      expect(body['status'], 401);
+    });
+
+    test('rejects a wrong token', () async {
+      final response = await handler(
+        _get('/api/v1/vaults', headers: {'authorization': 'Local wrong'}),
+      );
+      expect(response.statusCode, 401);
+    });
+
+    test('accepts Local and Bearer schemes with the right token', () async {
+      for (final scheme in ['Local', 'Bearer']) {
+        final response = await handler(
+          _get('/api/v1/vaults', headers: {'authorization': '$scheme secret'}),
+        );
+        // The route does not exist yet, so an authenticated request reaches
+        // the router and gets a 404 problem rather than a 401.
+        expect(response.statusCode, 404);
+        final body = jsonDecode(await response.readAsString());
+        expect(body['type'], 'problems/not-found');
+      }
+    });
+  });
+}
