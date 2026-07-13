@@ -5,7 +5,7 @@ info:
     Normative REST contract for Quadrant Todo. The same contract is served
     by the embedded (loopback) backend and the standalone server; both must
     pass the shared conformance suite. Errors use RFC 9457 Problem Details.
-  version: 1.4.0
+  version: 1.5.0
 
 servers:
   - url: http://127.0.0.1:{port}
