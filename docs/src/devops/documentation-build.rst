@@ -3,6 +3,8 @@ Documentation Build
 
 .. code-block:: bash
 
+   make docs                # root wrapper for the warning-free HTML build
+   make html                # build docs, then serve docs/build/html locally
    make -C docs html        # sphinx-build -W --keep-going -b html
    make -C docs linkcheck   # external link verification
 
