@@ -1,0 +1,39 @@
+name: Auto squash-merge feature PRs
+
+# Each feature is developed on its own branch and opened as a pull request.
+# When the pull request is marked ready for review, this workflow merges it
+# into main as a single squash commit, keeping main a linear history of
+# one commit per feature.
+#
+# Opt out of automatic merging for a specific pull request by either:
+#   - keeping the pull request in draft state, or
+#   - adding the "no-automerge" label.
+
+on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review, synchronize, unlabeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  squash-merge:
+    if: >-
+      github.event.pull_request.draft == false &&
+      !contains(github.event.pull_request.labels.*.name, 'no-automerge') &&
+      (startsWith(github.event.pull_request.head.ref, 'feature/') ||
+       startsWith(github.event.pull_request.head.ref, 'feat/') ||
+       startsWith(github.event.pull_request.head.ref, 'claude/'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Squash-merge the pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          # Prefer auto-merge so required status checks are awaited when
+          # branch protection is configured; fall back to an immediate
+          # squash merge when auto-merge is disabled in repository settings.
+          gh pr merge --squash --auto --delete-branch "$PR_URL" \
+            || gh pr merge --squash --delete-branch "$PR_URL"
