@@ -440,6 +440,184 @@ final List<SchemaFixture> releasedSchemas = [
       );
     },
   ),
+
+  (
+    version: 5,
+    // Schema v5 exactly as first released in v1.6.0 (daily plans).
+    ddl: '''
+      CREATE TABLE recurrence_rules (
+        id         TEXT PRIMARY KEY,
+        dtstart    TEXT NOT NULL,
+        rrule      TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE tasks (
+        id           TEXT PRIMARY KEY,
+        title        TEXT NOT NULL,
+        notes        TEXT NOT NULL DEFAULT '',
+        is_urgent    INTEGER NOT NULL DEFAULT 0,
+        is_important INTEGER NOT NULL DEFAULT 0,
+        completed_at TEXT,
+        created_at   TEXT NOT NULL,
+        updated_at   TEXT NOT NULL,
+        deleted_at   TEXT,
+        version      INTEGER NOT NULL DEFAULT 1,
+        start_kind        TEXT NOT NULL DEFAULT 'none',
+        start_date        TEXT,
+        start_at_utc      TEXT,
+        due_kind          TEXT NOT NULL DEFAULT 'none',
+        due_date          TEXT,
+        due_at_utc        TEXT,
+        timezone_id       TEXT,
+        estimated_minutes INTEGER,
+        recurrence_rule_id TEXT REFERENCES recurrence_rules(id)
+      );
+      CREATE TABLE tags (
+        id         TEXT PRIMARY KEY,
+        name       TEXT NOT NULL,
+        color      TEXT NOT NULL DEFAULT '#808080',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT,
+        version    INTEGER NOT NULL DEFAULT 1
+      );
+      CREATE UNIQUE INDEX tags_active_name
+        ON tags(name) WHERE deleted_at IS NULL;
+      CREATE TABLE task_tags (
+        task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+        tag_id  TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+        PRIMARY KEY (task_id, tag_id)
+      );
+      CREATE INDEX tasks_matrix_order
+        ON tasks(is_urgent DESC, is_important DESC, updated_at ASC, id ASC)
+        WHERE deleted_at IS NULL;
+      CREATE TABLE task_occurrences (
+        id                 TEXT PRIMARY KEY,
+        task_id            TEXT NOT NULL REFERENCES tasks(id)
+          ON DELETE CASCADE,
+        recurrence_rule_id TEXT NOT NULL
+          REFERENCES recurrence_rules(id) ON DELETE CASCADE,
+        original_date      TEXT NOT NULL,
+        kind               TEXT NOT NULL,
+        occurrence_date    TEXT,
+        occurrence_at_utc  TEXT,
+        status             TEXT NOT NULL DEFAULT 'open',
+        completed_at       TEXT,
+        created_at         TEXT NOT NULL,
+        updated_at         TEXT NOT NULL,
+        version            INTEGER NOT NULL DEFAULT 1,
+        UNIQUE (recurrence_rule_id, original_date)
+      );
+      CREATE TABLE recurrence_exceptions (
+        recurrence_rule_id TEXT NOT NULL
+          REFERENCES recurrence_rules(id) ON DELETE CASCADE,
+        original_date      TEXT NOT NULL,
+        exception_type     TEXT NOT NULL,
+        replacement_date   TEXT,
+        replacement_at_utc TEXT,
+        created_at         TEXT NOT NULL,
+        PRIMARY KEY (recurrence_rule_id, original_date)
+      );
+      CREATE TABLE reminders (
+        id                   TEXT PRIMARY KEY,
+        task_id              TEXT REFERENCES tasks(id) ON DELETE CASCADE,
+        occurrence_id        TEXT
+          REFERENCES task_occurrences(id) ON DELETE CASCADE,
+        trigger_type         TEXT NOT NULL,
+        trigger_at_utc       TEXT,
+        offset_minutes       INTEGER,
+        channel              TEXT NOT NULL DEFAULT 'notification',
+        state                TEXT NOT NULL DEFAULT 'pending',
+        platform_schedule_id TEXT,
+        created_at           TEXT NOT NULL,
+        updated_at           TEXT NOT NULL,
+        version              INTEGER NOT NULL DEFAULT 1
+      );
+      CREATE TABLE focus_sessions (
+        id                    TEXT PRIMARY KEY,
+        task_id               TEXT REFERENCES tasks(id) ON DELETE SET NULL,
+        occurrence_id         TEXT
+          REFERENCES task_occurrences(id) ON DELETE SET NULL,
+        device_id             TEXT,
+        planned_focus_seconds INTEGER NOT NULL,
+        planned_break_seconds INTEGER NOT NULL DEFAULT 0,
+        phase                 TEXT NOT NULL DEFAULT 'running',
+        started_at            TEXT NOT NULL,
+        ended_at              TEXT,
+        active_seconds        INTEGER NOT NULL DEFAULT 0,
+        paused_seconds        INTEGER NOT NULL DEFAULT 0,
+        last_transition_at    TEXT NOT NULL,
+        interruption_count    INTEGER NOT NULL DEFAULT 0,
+        result                TEXT,
+        notes                 TEXT NOT NULL DEFAULT '',
+        created_at            TEXT NOT NULL,
+        updated_at            TEXT NOT NULL,
+        version               INTEGER NOT NULL DEFAULT 1
+      );
+    
+      CREATE TABLE daily_plans (
+        id           TEXT PRIMARY KEY,
+        local_date   TEXT NOT NULL UNIQUE,
+        review_notes TEXT NOT NULL DEFAULT '',
+        status       TEXT NOT NULL DEFAULT 'open',
+        created_at   TEXT NOT NULL,
+        updated_at   TEXT NOT NULL,
+        version      INTEGER NOT NULL DEFAULT 1
+      );
+      CREATE TABLE daily_plan_items (
+        id              TEXT PRIMARY KEY,
+        daily_plan_id   TEXT NOT NULL
+          REFERENCES daily_plans(id) ON DELETE CASCADE,
+        task_id         TEXT REFERENCES tasks(id) ON DELETE CASCADE,
+        occurrence_id   TEXT
+          REFERENCES task_occurrences(id) ON DELETE CASCADE,
+        position        INTEGER NOT NULL,
+        planned_minutes INTEGER,
+        scheduled_start TEXT,
+        outcome         TEXT,
+        created_at      TEXT NOT NULL,
+        updated_at      TEXT NOT NULL,
+        version         INTEGER NOT NULL DEFAULT 1
+      );
+    ''',
+    seed: (db) {
+      db.execute(
+        'INSERT INTO daily_plans (id, local_date, created_at, updated_at) '
+        "VALUES ('99999999-9999-4999-8999-999999999999', '2026-07-20', "
+        "'2026-07-20T06:00:00.000000Z', '2026-07-20T06:00:00.000000Z')",
+      );
+      db.execute(
+        'INSERT INTO tasks (id, title, created_at, updated_at) VALUES '
+        "('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'planned work', "
+        "'2026-07-20T06:00:00.000000Z', '2026-07-20T06:00:00.000000Z')",
+      );
+      db.execute(
+        'INSERT INTO daily_plan_items (id, daily_plan_id, task_id, '
+        'position, planned_minutes, created_at, updated_at) VALUES '
+        "('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', "
+        "'99999999-9999-4999-8999-999999999999', "
+        "'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 0, 50, "
+        "'2026-07-20T06:00:00.000000Z', '2026-07-20T06:00:00.000000Z')",
+      );
+    },
+    verify: (db) {
+      expect(
+        db
+            .select('SELECT local_date, status FROM daily_plans')
+            .first
+            .values,
+        ['2026-07-20', 'open'],
+      );
+      expect(
+        db
+            .select('SELECT position, planned_minutes FROM daily_plan_items')
+            .first
+            .values,
+        [0, 50],
+      );
+    },
+  ),
 ];
 
 void main() {

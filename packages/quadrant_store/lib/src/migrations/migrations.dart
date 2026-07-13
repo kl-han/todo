@@ -144,6 +144,36 @@ const List<String> migrations = [
     version               INTEGER NOT NULL DEFAULT 1
   );
   ''',
+
+  // v4 -> v5: daily plans (v1.6). One plan per local date; items order
+  // by position and reference a task xor an occurrence.
+  '''
+  CREATE TABLE daily_plans (
+    id           TEXT PRIMARY KEY,
+    local_date   TEXT NOT NULL UNIQUE,
+    review_notes TEXT NOT NULL DEFAULT '',
+    status       TEXT NOT NULL DEFAULT 'open',
+    created_at   TEXT NOT NULL,
+    updated_at   TEXT NOT NULL,
+    version      INTEGER NOT NULL DEFAULT 1
+  );
+
+  CREATE TABLE daily_plan_items (
+    id              TEXT PRIMARY KEY,
+    daily_plan_id   TEXT NOT NULL
+      REFERENCES daily_plans(id) ON DELETE CASCADE,
+    task_id         TEXT REFERENCES tasks(id) ON DELETE CASCADE,
+    occurrence_id   TEXT
+      REFERENCES task_occurrences(id) ON DELETE CASCADE,
+    position        INTEGER NOT NULL,
+    planned_minutes INTEGER,
+    scheduled_start TEXT,
+    outcome         TEXT,
+    created_at      TEXT NOT NULL,
+    updated_at      TEXT NOT NULL,
+    version         INTEGER NOT NULL DEFAULT 1
+  );
+  ''',
 ];
 
 /// Current schema version; reported by `/api/v1/health`.

@@ -3,6 +3,7 @@
 /// Nothing in this package depends on HTTP, SQLite, or Flutter.
 library;
 
+export 'src/entities/daily_plan.dart';
 export 'src/entities/focus_session.dart';
 export 'src/entities/reminder.dart';
 export 'src/entities/tag.dart';

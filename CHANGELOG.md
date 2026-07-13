@@ -2,6 +2,20 @@
 
 All notable changes; one entry per squash-merged milestone.
 
+## v1.6.0 — Daily planning
+
+- **Daily plans**: one per local date, materialized empty on first read
+  and filled only by the user — nothing is auto-populated with due tasks.
+  Items reference a task or one occurrence (once per day), order by
+  position, and carry optional time blocks (`HH:MM` + planned minutes).
+- **Outcomes and review**: items record `done|partial|skipped|moved`;
+  the plan records review notes and flips to `reviewed`.
+- **Planned versus actual**: `GET /plans/{date}/accuracy` compares the
+  plan's summed minutes against focus sessions started that local date.
+- Schema v5 with its frozen fixture; OpenAPI 1.6.0 (`plans` resources);
+  capabilities advertise `daily-plans`; conformance suite extended with
+  the daily-plan contract on both backends.
+
 ## v1.5.0 — Android usage import core
 
 - Pure `AndroidUsageImporter` in `quadrant_usage`: converts

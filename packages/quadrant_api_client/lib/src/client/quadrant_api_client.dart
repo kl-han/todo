@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../dto/capabilities.dart';
 import '../dto/focus_session_dto.dart';
 import '../dto/health_report.dart';
+import '../dto/plan_dto.dart';
 import '../dto/recurrence_dto.dart';
 import '../dto/tag_dto.dart';
 import '../dto/task_dto.dart';
@@ -306,6 +307,103 @@ class QuadrantApiClient {
           'notes': ?notes,
         },
       ));
+
+  // ---- Daily plans ----
+
+  /// GET /plans/{date} - reads (creating on first read) the plan for a
+  /// local date (`YYYY-MM-DD`).
+  Future<DailyPlanDto> dailyPlan(String localDate,
+          {String vault = 'default'}) async =>
+      DailyPlanDto.fromJson(
+          await _request('GET', '/api/v1/vaults/$vault/plans/$localDate'));
+
+  /// PATCH /plans/{date} - record the daily review.
+  Future<DailyPlanDto> reviewDailyPlan(
+    String localDate, {
+    String vault = 'default',
+    int? ifMatchVersion,
+    String? reviewNotes,
+    String? status,
+  }) async =>
+      DailyPlanDto.fromJson(await _request(
+        'PATCH',
+        '/api/v1/vaults/$vault/plans/$localDate',
+        ifMatchVersion: ifMatchVersion,
+        body: {
+          'review_notes': ?reviewNotes,
+          'status': ?status,
+        },
+      ));
+
+  Future<PlanItemDto> addPlanItem(
+    String localDate, {
+    String vault = 'default',
+    String? taskId,
+    String? occurrenceId,
+    int? plannedMinutes,
+    String? scheduledStart,
+  }) async =>
+      PlanItemDto.fromJson(await _request(
+        'POST',
+        '/api/v1/vaults/$vault/plans/$localDate/items',
+        body: {
+          'task_id': ?taskId,
+          'occurrence_id': ?occurrenceId,
+          'planned_minutes': ?plannedMinutes,
+          'scheduled_start': ?scheduledStart,
+        },
+      ));
+
+  /// PATCH an item. [clearOutcome]/[clearScheduledStart]/
+  /// [clearPlannedMinutes] send explicit nulls.
+  Future<PlanItemDto> updatePlanItem(
+    String localDate,
+    String itemId, {
+    String vault = 'default',
+    int? ifMatchVersion,
+    int? position,
+    int? plannedMinutes,
+    bool clearPlannedMinutes = false,
+    String? scheduledStart,
+    bool clearScheduledStart = false,
+    String? outcome,
+    bool clearOutcome = false,
+  }) async =>
+      PlanItemDto.fromJson(await _request(
+        'PATCH',
+        '/api/v1/vaults/$vault/plans/$localDate/items/$itemId',
+        ifMatchVersion: ifMatchVersion,
+        body: {
+          'position': ?position,
+          if (clearPlannedMinutes)
+            'planned_minutes': null
+          else
+            'planned_minutes': ?plannedMinutes,
+          if (clearScheduledStart)
+            'scheduled_start': null
+          else
+            'scheduled_start': ?scheduledStart,
+          if (clearOutcome) 'outcome': null else 'outcome': ?outcome,
+        },
+      ));
+
+  Future<void> removePlanItem(
+    String localDate,
+    String itemId, {
+    String vault = 'default',
+    int? ifMatchVersion,
+  }) =>
+      _request(
+        'DELETE',
+        '/api/v1/vaults/$vault/plans/$localDate/items/$itemId',
+        ifMatchVersion: ifMatchVersion,
+        expectBody: false,
+      );
+
+  /// GET /plans/{date}/accuracy - planned versus actual focus time.
+  Future<Map<String, Object?>> planAccuracy(String localDate,
+          {String vault = 'default'}) =>
+      _request('GET', '/api/v1/vaults/$vault/plans/$localDate/accuracy');
 
   // ---- Recurrence ----
 

@@ -622,6 +622,119 @@ void runBackendContractSuite(
     });
   });
 
+  group('daily plan contract', () {
+    test('the plan is a per-date singleton, filled only by the user',
+        () async {
+      // Far-future date keeps this test isolated from other suite tasks.
+      final first = await client.dailyPlan('2034-05-01');
+      final second = await client.dailyPlan('2034-05-01');
+      expect(second.id, first.id, reason: 'reads are idempotent');
+      expect(first.items, isEmpty, reason: 'nothing is auto-filled');
+      expect(first.status, 'open');
+
+      final task = await client.createTask(title: 'plan-me');
+      final item = await client.addPlanItem(
+        '2034-05-01',
+        taskId: task.id,
+        plannedMinutes: 50,
+        scheduledStart: '09:30',
+      );
+      expect(item.position, 0);
+      expect(item.scheduledStart, '09:30');
+
+      // The same work enters a day once.
+      await expectLater(
+        client.addPlanItem('2034-05-01', taskId: task.id),
+        throwsA(_problem(409, 'problems/conflict')),
+      );
+
+      final withItem = await client.dailyPlan('2034-05-01');
+      expect(withItem.plannedMinutes, 50);
+      expect(withItem.items.single.id, item.id);
+    });
+
+    test('items reorder, record outcomes, and honor If-Match', () async {
+      final a = await client.createTask(title: 'plan-a');
+      final b = await client.createTask(title: 'plan-b');
+      final itemA =
+          await client.addPlanItem('2034-05-02', taskId: a.id);
+      final itemB =
+          await client.addPlanItem('2034-05-02', taskId: b.id);
+      expect([itemA.position, itemB.position], [0, 1]);
+
+      final moved = await client.updatePlanItem(
+        '2034-05-02',
+        itemB.id,
+        position: 0,
+        ifMatchVersion: itemB.version,
+      );
+      expect(moved.position, 0);
+
+      final done = await client.updatePlanItem(
+        '2034-05-02',
+        itemA.id,
+        outcome: 'done',
+      );
+      expect(done.outcome, 'done');
+
+      await expectLater(
+        client.updatePlanItem('2034-05-02', itemA.id,
+            outcome: 'skipped', ifMatchVersion: 1),
+        throwsA(_problem(412, 'problems/version-conflict')),
+      );
+
+      await client.removePlanItem('2034-05-02', itemB.id);
+      final plan = await client.dailyPlan('2034-05-02');
+      expect(plan.items.map((i) => i.id), [itemA.id]);
+    });
+
+    test('the daily review closes the loop', () async {
+      final plan = await client.dailyPlan('2034-05-03');
+      final reviewed = await client.reviewDailyPlan(
+        '2034-05-03',
+        reviewNotes: 'good day',
+        status: 'reviewed',
+        ifMatchVersion: plan.version,
+      );
+      expect(reviewed.status, 'reviewed');
+      expect(reviewed.reviewNotes, 'good day');
+    });
+
+    test('accuracy reports planned versus actual focus time', () async {
+      final task = await client.createTask(title: 'plan-accuracy');
+      await client.addPlanItem('2034-05-04',
+          taskId: task.id, plannedMinutes: 25);
+      final accuracy = await client.planAccuracy('2034-05-04');
+      expect(accuracy['planned_minutes'], 25);
+      expect(accuracy['actual_focus_seconds'], isA<int>());
+      expect(accuracy['focus_session_count'], isA<int>());
+    });
+
+    test('validation problems: bad dates, bad times, dangling refs',
+        () async {
+      await expectLater(
+        client.dailyPlan('2034-13-01'),
+        throwsA(_problem(400, 'problems/validation')),
+      );
+      final task = await client.createTask(title: 'plan-invalid');
+      await expectLater(
+        client.addPlanItem('2034-05-05',
+            taskId: task.id, scheduledStart: '25:99'),
+        throwsA(_problem(400, 'problems/validation')),
+      );
+      await expectLater(
+        client.addPlanItem('2034-05-05',
+            taskId: '99999999-9999-4999-8999-999999999999'),
+        throwsA(_problem(404, 'problems/not-found')),
+      );
+    });
+
+    test('capabilities advertise daily-plans', () async {
+      final capabilities = await client.capabilities();
+      expect(capabilities.features, contains('daily-plans'));
+    });
+  });
+
   group('tag contract', () {
     test('tag lifecycle: create, progress, rename, delete', () async {
       final tag = await client.createTag(name: 'suite-lifecycle');

@@ -113,6 +113,34 @@ Map<String, Object?> focusSessionToJson(FocusSession session) => {
       'version': session.version,
     };
 
+Map<String, Object?> planToJson(DailyPlan plan, List<DailyPlanItem> items) =>
+    {
+      'id': plan.id,
+      'local_date': plan.localDate.toString(),
+      'planned_minutes':
+          items.fold<int>(0, (sum, item) => sum + (item.plannedMinutes ?? 0)),
+      'review_notes': plan.reviewNotes,
+      'status': plan.status.wireName,
+      'items': [for (final item in items) planItemToJson(item)],
+      'created_at': encodeInstant(plan.createdAt),
+      'updated_at': encodeInstant(plan.updatedAt),
+      'version': plan.version,
+    };
+
+Map<String, Object?> planItemToJson(DailyPlanItem item) => {
+      'id': item.id,
+      'daily_plan_id': item.dailyPlanId,
+      'task_id': item.taskId,
+      'occurrence_id': item.occurrenceId,
+      'position': item.position,
+      'planned_minutes': item.plannedMinutes,
+      'scheduled_start': item.scheduledStart,
+      'outcome': item.outcome?.wireName,
+      'created_at': encodeInstant(item.createdAt),
+      'updated_at': encodeInstant(item.updatedAt),
+      'version': item.version,
+    };
+
 Map<String, Object?> tagToJson(Tag tag, TagProgress progress) => {
       'id': tag.id,
       'name': tag.name,

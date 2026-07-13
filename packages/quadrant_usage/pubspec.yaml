@@ -2,7 +2,7 @@ name: quadrant_usage
 description: >-
   Event-driven application-usage tracking for Quadrant Todo: interval
   state machine, privacy policy, and daily aggregation.
-version: 1.5.0
+version: 1.6.0
 publish_to: none
 resolution: workspace
 

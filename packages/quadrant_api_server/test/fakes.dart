@@ -261,6 +261,50 @@ class InMemoryFocusSessionRepository implements FocusSessionRepository {
   void update(FocusSession session) => _sessions[session.id] = session;
 }
 
+
+class InMemoryPlanningRepository implements PlanningRepository {
+  final Map<String, DailyPlan> _plans = {};
+  final Map<String, DailyPlanItem> _items = {};
+
+  @override
+  DailyPlan? findPlanByDate(PlainDate localDate) {
+    for (final plan in _plans.values) {
+      if (plan.localDate == localDate) return plan;
+    }
+    return null;
+  }
+
+  @override
+  void insertPlan(DailyPlan plan) => _plans[plan.id] = plan;
+
+  @override
+  void updatePlan(DailyPlan plan) => _plans[plan.id] = plan;
+
+  @override
+  DailyPlanItem? findItemById(String id) => _items[id];
+
+  @override
+  List<DailyPlanItem> itemsOf(String planId) {
+    final result = _items.values
+        .where((item) => item.dailyPlanId == planId)
+        .toList()
+      ..sort((a, b) {
+        final byPosition = a.position.compareTo(b.position);
+        return byPosition != 0 ? byPosition : a.id.compareTo(b.id);
+      });
+    return result;
+  }
+
+  @override
+  void insertItem(DailyPlanItem item) => _items[item.id] = item;
+
+  @override
+  void updateItem(DailyPlanItem item) => _items[item.id] = item;
+
+  @override
+  void deleteItem(String id) => _items.remove(id);
+}
+
 /// One in-memory vault named `default`, plus a resolver for it.
 AppServices inMemoryServices() {
   final taskRepo = InMemoryTaskRepository();
@@ -270,5 +314,6 @@ AppServices inMemoryServices() {
     recurrenceRepository: InMemoryRecurrenceRepository(taskRepo),
     reminderRepository: InMemoryReminderRepository(),
     focusSessionRepository: InMemoryFocusSessionRepository(),
+    planningRepository: InMemoryPlanningRepository(),
   );
 }

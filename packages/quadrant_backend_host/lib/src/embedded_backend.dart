@@ -99,6 +99,7 @@ Future<void> _backendMain(_Bootstrap bootstrap) async {
     recurrenceRepository: SqliteRecurrenceRepository(database),
     reminderRepository: SqliteReminderRepository(database),
     focusSessionRepository: SqliteFocusSessionRepository(database),
+    planningRepository: SqlitePlanningRepository(database),
   );
 
   final handler = buildApiHandler(

@@ -33,6 +33,7 @@ Handler buildApiHandler(ApiServerConfig config) {
             'recurrence',
             'reminders',
             'focus-sessions',
+            'daily-plans',
           ],
         }),
         headers: {'content-type': 'application/json'},
