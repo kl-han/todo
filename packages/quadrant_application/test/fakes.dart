@@ -11,7 +11,14 @@ class InMemoryTaskRepository implements TaskRepository {
   Task? findById(String id) => tasks[id];
 
   @override
-  List<Task> query(TaskQuery query) => throw UnimplementedError();
+  List<Task> query(TaskQuery query) => tasks.values.where((task) {
+        if (task.isDeleted) return false;
+        return switch (query.status) {
+          StatusFilter.open => task.status == TaskStatus.open,
+          StatusFilter.completed => task.status == TaskStatus.completed,
+          StatusFilter.all => true,
+        };
+      }).toList();
 
   @override
   List<Task> scheduled(StatusFilter status) => tasks.values.where((task) {
@@ -220,4 +227,16 @@ class InMemoryPlanningRepository implements PlanningRepository {
 
   @override
   void deleteItem(String id) => _items.remove(id);
+}
+
+class InMemoryReportRepository implements ReportRepository {
+  final Map<String, WeeklyReportSnapshot> _snapshots = {};
+
+  @override
+  WeeklyReportSnapshot? findSnapshot(PlainDate weekStart) =>
+      _snapshots[weekStart.toString()];
+
+  @override
+  void upsertSnapshot(WeeklyReportSnapshot snapshot) =>
+      _snapshots[snapshot.weekStart.toString()] = snapshot;
 }

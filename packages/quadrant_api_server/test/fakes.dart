@@ -305,6 +305,19 @@ class InMemoryPlanningRepository implements PlanningRepository {
   void deleteItem(String id) => _items.remove(id);
 }
 
+
+class InMemoryReportRepository implements ReportRepository {
+  final Map<String, WeeklyReportSnapshot> _snapshots = {};
+
+  @override
+  WeeklyReportSnapshot? findSnapshot(PlainDate weekStart) =>
+      _snapshots[weekStart.toString()];
+
+  @override
+  void upsertSnapshot(WeeklyReportSnapshot snapshot) =>
+      _snapshots[snapshot.weekStart.toString()] = snapshot;
+}
+
 /// One in-memory vault named `default`, plus a resolver for it.
 AppServices inMemoryServices() {
   final taskRepo = InMemoryTaskRepository();
@@ -315,5 +328,6 @@ AppServices inMemoryServices() {
     reminderRepository: InMemoryReminderRepository(),
     focusSessionRepository: InMemoryFocusSessionRepository(),
     planningRepository: InMemoryPlanningRepository(),
+    reportRepository: InMemoryReportRepository(),
   );
 }

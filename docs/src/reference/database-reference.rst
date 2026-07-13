@@ -1,7 +1,7 @@
 Database Reference
 ==================
 
-Schema version: **5** (see :doc:`/implementation/sqlite-schema` for DDL
+Schema version: **6** (see :doc:`/implementation/sqlite-schema` for DDL
 and :doc:`/implementation/migrations` for the upgrade policy).
 
 Tables
@@ -78,6 +78,13 @@ Tables
    ``version``.
 
    .. versionadded:: 1.6
+
+``weekly_report_snapshots``
+   ``week_start`` (PK), ``generated_at``, ``report_version``,
+   ``summary_json``, ``user_notes``. Stored only when the user
+   finalizes a week; everything else is computed on demand.
+
+   .. versionadded:: 1.7
 
 usage.sqlite3
 -------------

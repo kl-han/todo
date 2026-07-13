@@ -308,6 +308,31 @@ class QuadrantApiClient {
         },
       ));
 
+  // ---- Weekly review ----
+
+  /// GET /reports/weekly?week_start= (a Monday, `YYYY-MM-DD`).
+  Future<Map<String, Object?>> weeklyReport(String weekStart,
+          {String vault = 'default'}) =>
+      _request('GET', '/api/v1/vaults/$vault/reports/weekly',
+          query: {'week_start': weekStart});
+
+  /// PUT /reports/weekly/{week}/snapshot - finalize with notes.
+  Future<Map<String, Object?>> finalizeWeeklyReport(
+    String weekStart, {
+    String vault = 'default',
+    String? userNotes,
+  }) =>
+      _request(
+        'PUT',
+        '/api/v1/vaults/$vault/reports/weekly/$weekStart/snapshot',
+        body: {'user_notes': ?userNotes},
+      );
+
+  Future<Map<String, Object?>> weeklyReportSnapshot(String weekStart,
+          {String vault = 'default'}) =>
+      _request(
+          'GET', '/api/v1/vaults/$vault/reports/weekly/$weekStart/snapshot');
+
   // ---- Daily plans ----
 
   /// GET /plans/{date} - reads (creating on first read) the plan for a

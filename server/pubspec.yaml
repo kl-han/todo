@@ -1,6 +1,6 @@
 name: quadrant_server
 description: Standalone Quadrant Todo backend server.
-version: 1.6.0
+version: 1.7.0
 publish_to: none
 resolution: workspace
 

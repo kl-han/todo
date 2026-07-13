@@ -73,6 +73,7 @@ class AgentHost {
       reminderRepository: SqliteReminderRepository(database),
       focusSessionRepository: SqliteFocusSessionRepository(database),
       planningRepository: SqlitePlanningRepository(database),
+      reportRepository: SqliteReportRepository(database),
       clock: _clock,
     );
     _scheduler = AgentScheduler(services, notifier, clock: _clock);

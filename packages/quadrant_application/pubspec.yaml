@@ -1,6 +1,6 @@
 name: quadrant_application
 description: Application commands, queries, and services for Quadrant Todo.
-version: 1.6.0
+version: 1.7.0
 publish_to: none
 resolution: workspace
 

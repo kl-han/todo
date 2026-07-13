@@ -460,6 +460,46 @@ void mountVaultRoutes(Router router, ApiServerConfig config) {
     });
   });
 
+  // ---- Weekly review ----
+
+  router.get('/api/v1/vaults/<vaultId>/reports/weekly', (Request request) {
+    final services = vault(request);
+    final params = request.url.queryParameters;
+    final weekStart = _parseDate(params['week_start'], 'week_start');
+    if (weekStart == null) {
+      throw MalformedRequestError(
+        'Query parameter "week_start" (a Monday) is required.',
+      );
+    }
+    final report = services.weeklyReview.report(weekStart);
+    final format = params['format'] ?? 'json';
+    return switch (format) {
+      'json' => _json(200, report.toJson()),
+      'csv' => Response(200,
+          body: report.toCsv(), headers: {'content-type': 'text/csv'}),
+      _ => throw MalformedRequestError('Unknown format "$format".'),
+    };
+  });
+
+  router.put('/api/v1/vaults/<vaultId>/reports/weekly/<weekStart>/snapshot',
+      (Request request) async {
+    final services = vault(request);
+    final body = await readJsonObject(request);
+    final snapshot = services.weeklyReview.finalize(
+      _parseDate(request.params['weekStart'], 'week_start')!,
+      userNotes: optional<String>(body, 'user_notes') ?? '',
+    );
+    return _json(200, _snapshotJson(snapshot));
+  });
+
+  router.get('/api/v1/vaults/<vaultId>/reports/weekly/<weekStart>/snapshot',
+      (Request request) {
+    final services = vault(request);
+    final snapshot = services.weeklyReview
+        .snapshot(_parseDate(request.params['weekStart'], 'week_start')!);
+    return _json(200, _snapshotJson(snapshot));
+  });
+
   // ---- Agenda read model ----
 
   router.get('/api/v1/vaults/<vaultId>/agenda', (Request request) {
@@ -647,6 +687,14 @@ TaskSort _parseSort(String value) {
     throw MalformedRequestError('Unknown sort "$value".');
   }
 }
+
+Map<String, Object?> _snapshotJson(WeeklyReportSnapshot snapshot) => {
+      'week_start': snapshot.weekStart.toString(),
+      'generated_at': snapshot.generatedAt.toIso8601String(),
+      'report_version': snapshot.reportVersion,
+      'summary': jsonDecode(snapshot.summaryJson),
+      'user_notes': snapshot.userNotes,
+    };
 
 PlanStatus _parsePlanStatus(String value) {
   try {
