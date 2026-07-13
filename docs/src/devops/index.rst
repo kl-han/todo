@@ -13,5 +13,6 @@ DevOps
    ios-build-signing
    linux-build-packaging
    server-service
+   agent-service
    database-backup
    release-process

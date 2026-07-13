@@ -7,6 +7,13 @@ REST API
    conventions
    system-api
    task-api
+   agenda-api
+   recurrence-api
+   reminder-api
+   focus-api
+   agent-api
+   plan-api
+   report-api
    quadrant-api
    tag-api
    concurrency

@@ -33,6 +33,16 @@ class InMemoryTaskRepository implements TaskRepository {
     return result;
   }
 
+  @override
+  List<Task> scheduled(StatusFilter status) => _tasks.values.where((task) {
+        if (task.isDeleted || !task.schedule.isScheduled) return false;
+        return switch (status) {
+          StatusFilter.open => task.status == TaskStatus.open,
+          StatusFilter.completed => task.status == TaskStatus.completed,
+          StatusFilter.all => true,
+        };
+      }).toList();
+
   static int _matrixModifiedAsc(Task a, Task b) {
     int flag(bool v) => v ? 0 : 1;
     final urgent = flag(a.isUrgent).compareTo(flag(b.isUrgent));
@@ -111,11 +121,213 @@ class InMemoryTagRepository implements TagRepository {
   void update(Tag tag) => _tags[tag.id] = tag;
 }
 
+class InMemoryRecurrenceRepository implements RecurrenceRepository {
+  InMemoryRecurrenceRepository(this._taskRepository);
+
+  final InMemoryTaskRepository _taskRepository;
+  final Map<String, RecurrenceRuleRecord> _rules = {};
+  final Map<String, TaskOccurrence> _occurrences = {};
+  final Map<(String, PlainDate), RecurrenceException> _exceptions = {};
+
+  @override
+  RecurrenceRuleRecord? findRuleById(String id) => _rules[id];
+
+  @override
+  void insertRule(RecurrenceRuleRecord rule) => _rules[rule.id] = rule;
+
+  @override
+  List<({RecurrenceRuleRecord rule, String taskId})> activeRuleBindings() => [
+        for (final task in _taskRepository._tasks.values)
+          if (!task.isDeleted &&
+              task.recurrenceRuleId != null &&
+              _rules.containsKey(task.recurrenceRuleId))
+            (rule: _rules[task.recurrenceRuleId]!, taskId: task.id),
+      ];
+
+  @override
+  TaskOccurrence? findOccurrenceById(String id) => _occurrences[id];
+
+  @override
+  Set<PlainDate> materializedDates(String ruleId) => {
+        for (final occurrence in _occurrences.values)
+          if (occurrence.recurrenceRuleId == ruleId) occurrence.originalDate,
+      };
+
+  @override
+  List<TaskOccurrence> occurrencesBetween(
+    PlainDate from,
+    PlainDate to, {
+    OccurrenceFilter status = OccurrenceFilter.all,
+    String? taskId,
+  }) {
+    final result = _occurrences.values.where((occurrence) {
+      if (occurrence.originalDate.isBefore(from) ||
+          occurrence.originalDate.isAfter(to)) {
+        return false;
+      }
+      if (!status.matches(occurrence.status)) return false;
+      if (taskId != null && occurrence.taskId != taskId) return false;
+      return true;
+    }).toList()
+      ..sort((a, b) {
+        final byDate = a.originalDate.compareTo(b.originalDate);
+        return byDate != 0 ? byDate : a.id.compareTo(b.id);
+      });
+    return result;
+  }
+
+  @override
+  void insertOccurrence(TaskOccurrence occurrence) =>
+      _occurrences[occurrence.id] = occurrence;
+
+  @override
+  void updateOccurrence(TaskOccurrence occurrence) =>
+      _occurrences[occurrence.id] = occurrence;
+
+  @override
+  void deleteOpenOccurrences(String ruleId) => _occurrences.removeWhere(
+        (_, occurrence) =>
+            occurrence.recurrenceRuleId == ruleId &&
+            occurrence.status == OccurrenceStatus.open,
+      );
+
+  @override
+  RecurrenceException? findException(String ruleId, PlainDate originalDate) =>
+      _exceptions[(ruleId, originalDate)];
+
+  @override
+  void upsertException(RecurrenceException exception) =>
+      _exceptions[(exception.recurrenceRuleId, exception.originalDate)] =
+          exception;
+
+  @override
+  void deleteException(String ruleId, PlainDate originalDate) =>
+      _exceptions.remove((ruleId, originalDate));
+}
+
+class InMemoryReminderRepository implements ReminderRepository {
+  final Map<String, Reminder> _reminders = {};
+
+  @override
+  Reminder? findById(String id) => _reminders[id];
+
+  @override
+  List<Reminder> list() =>
+      _reminders.values.toList()..sort((a, b) => a.id.compareTo(b.id));
+
+  @override
+  void insert(Reminder reminder) => _reminders[reminder.id] = reminder;
+
+  @override
+  void update(Reminder reminder) => _reminders[reminder.id] = reminder;
+
+  @override
+  void delete(String id) => _reminders.remove(id);
+}
+
+
+class InMemoryFocusSessionRepository implements FocusSessionRepository {
+  final Map<String, FocusSession> _sessions = {};
+
+  @override
+  FocusSession? findById(String id) => _sessions[id];
+
+  @override
+  FocusSession? findActive() {
+    for (final session in _sessions.values) {
+      if (session.isActive) return session;
+    }
+    return null;
+  }
+
+  @override
+  List<FocusSession> list({bool? active, String? taskId}) {
+    final result = _sessions.values.where((session) {
+      if (active != null && session.isActive != active) return false;
+      if (taskId != null && session.taskId != taskId) return false;
+      return true;
+    }).toList()
+      ..sort((a, b) {
+        final byStart = b.startedAt.compareTo(a.startedAt);
+        return byStart != 0 ? byStart : a.id.compareTo(b.id);
+      });
+    return result;
+  }
+
+  @override
+  void insert(FocusSession session) => _sessions[session.id] = session;
+
+  @override
+  void update(FocusSession session) => _sessions[session.id] = session;
+}
+
+
+class InMemoryPlanningRepository implements PlanningRepository {
+  final Map<String, DailyPlan> _plans = {};
+  final Map<String, DailyPlanItem> _items = {};
+
+  @override
+  DailyPlan? findPlanByDate(PlainDate localDate) {
+    for (final plan in _plans.values) {
+      if (plan.localDate == localDate) return plan;
+    }
+    return null;
+  }
+
+  @override
+  void insertPlan(DailyPlan plan) => _plans[plan.id] = plan;
+
+  @override
+  void updatePlan(DailyPlan plan) => _plans[plan.id] = plan;
+
+  @override
+  DailyPlanItem? findItemById(String id) => _items[id];
+
+  @override
+  List<DailyPlanItem> itemsOf(String planId) {
+    final result = _items.values
+        .where((item) => item.dailyPlanId == planId)
+        .toList()
+      ..sort((a, b) {
+        final byPosition = a.position.compareTo(b.position);
+        return byPosition != 0 ? byPosition : a.id.compareTo(b.id);
+      });
+    return result;
+  }
+
+  @override
+  void insertItem(DailyPlanItem item) => _items[item.id] = item;
+
+  @override
+  void updateItem(DailyPlanItem item) => _items[item.id] = item;
+
+  @override
+  void deleteItem(String id) => _items.remove(id);
+}
+
+
+class InMemoryReportRepository implements ReportRepository {
+  final Map<String, WeeklyReportSnapshot> _snapshots = {};
+
+  @override
+  WeeklyReportSnapshot? findSnapshot(PlainDate weekStart) =>
+      _snapshots[weekStart.toString()];
+
+  @override
+  void upsertSnapshot(WeeklyReportSnapshot snapshot) =>
+      _snapshots[snapshot.weekStart.toString()] = snapshot;
+}
+
 /// One in-memory vault named `default`, plus a resolver for it.
 AppServices inMemoryServices() {
   final taskRepo = InMemoryTaskRepository();
   return AppServices(
     taskRepository: taskRepo,
     tagRepository: InMemoryTagRepository(taskRepo),
+    recurrenceRepository: InMemoryRecurrenceRepository(taskRepo),
+    reminderRepository: InMemoryReminderRepository(),
+    focusSessionRepository: InMemoryFocusSessionRepository(),
+    planningRepository: InMemoryPlanningRepository(),
+    reportRepository: InMemoryReportRepository(),
   );
 }

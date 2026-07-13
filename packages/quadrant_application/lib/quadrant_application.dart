@@ -1,13 +1,24 @@
 /// Application layer for Quadrant Todo: commands, queries, services, and
 /// the repository interfaces the store implements.
 ///
-/// Depends only on `quadrant_domain`; never on HTTP, SQLite, or Flutter.
+/// Depends only on `quadrant_domain` and the tz database (`timezone`);
+/// never on HTTP, SQLite, or Flutter.
 library;
 
+export 'src/commands/schedule_patch.dart';
 export 'src/errors.dart';
+export 'src/queries/agenda.dart';
 export 'src/queries/task_query.dart';
+export 'src/recurrence/recurrence_record.dart';
 export 'src/repositories.dart';
+export 'src/services/agenda_service.dart';
 export 'src/services/app_services.dart';
+export 'src/services/focus_service.dart';
+export 'src/services/planning_service.dart';
 export 'src/services/quadrant_service.dart';
+export 'src/services/recurrence_service.dart';
+export 'src/services/reminder_service.dart';
 export 'src/services/tag_service.dart';
 export 'src/services/task_service.dart';
+export 'src/services/weekly_review_service.dart';
+export 'src/temporal/timezones.dart';

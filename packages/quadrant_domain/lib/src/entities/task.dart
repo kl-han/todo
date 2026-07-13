@@ -1,4 +1,5 @@
 import '../value_objects/quadrant.dart';
+import '../value_objects/task_schedule.dart';
 import '../value_objects/task_status.dart';
 
 /// A task. Immutable; every state transition produces a new value with an
@@ -14,6 +15,9 @@ class Task {
     required this.isImportant,
     required this.createdAt,
     required this.updatedAt,
+    this.schedule = const TaskSchedule.none(),
+    this.estimatedMinutes,
+    this.recurrenceRuleId,
     this.completedAt,
     this.deletedAt,
     this.version = 1,
@@ -24,6 +28,12 @@ class Task {
   final String notes;
   final bool isUrgent;
   final bool isImportant;
+  final TaskSchedule schedule;
+  final int? estimatedMinutes;
+
+  /// Managed by the recurrence service, never by direct task edits.
+  final String? recurrenceRuleId;
+
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? completedAt;
@@ -47,6 +57,9 @@ class Task {
     String? notes,
     bool? isUrgent,
     bool? isImportant,
+    TaskSchedule? schedule,
+    int? Function()? estimatedMinutes,
+    String? Function()? recurrenceRuleId,
     DateTime? Function()? completedAt,
     DateTime? Function()? deletedAt,
   }) {
@@ -56,6 +69,12 @@ class Task {
       notes: notes ?? this.notes,
       isUrgent: isUrgent ?? this.isUrgent,
       isImportant: isImportant ?? this.isImportant,
+      schedule: schedule ?? this.schedule,
+      estimatedMinutes:
+          estimatedMinutes != null ? estimatedMinutes() : this.estimatedMinutes,
+      recurrenceRuleId: recurrenceRuleId != null
+          ? recurrenceRuleId()
+          : this.recurrenceRuleId,
       createdAt: createdAt,
       updatedAt: now,
       completedAt: completedAt != null ? completedAt() : this.completedAt,
@@ -70,12 +89,21 @@ class Task {
     String? notes,
     bool? isUrgent,
     bool? isImportant,
+    TaskSchedule? schedule,
+    int? Function()? estimatedMinutes,
   }) =>
       _next(now,
           title: title,
           notes: notes,
           isUrgent: isUrgent,
-          isImportant: isImportant);
+          isImportant: isImportant,
+          schedule: schedule,
+          estimatedMinutes: estimatedMinutes);
+
+  /// Links or unlinks the recurrence rule; used only by the recurrence
+  /// service.
+  Task withRecurrenceRule(DateTime now, String? ruleId) =>
+      _next(now, recurrenceRuleId: () => ruleId);
 
   Task complete(DateTime now) => _next(now, completedAt: () => now);
 

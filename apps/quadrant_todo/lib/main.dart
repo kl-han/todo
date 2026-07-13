@@ -1,13 +1,43 @@
+import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 
-import 'bootstrap/local_bootstrap.dart';
+import 'bootstrap/backend_selector.dart';
+import 'bootstrap/remote_bootstrap.dart';
 import 'presentation/app.dart';
 import 'state/app_state.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // v0.3 always boots in local mode; the backend-mode selector arrives in
-  // v0.7 and switches between local_bootstrap and remote_bootstrap.
-  final connection = await bootstrapLocalBackend();
-  runApp(QuadrantTodoApp(state: AppState(connection)));
+  try {
+    final connection = await bootstrapFromSettings();
+    runApp(QuadrantTodoApp(state: AppState(connection)));
+  } on IncompatibleBackendException catch (error) {
+    // Retrying cannot fix a version mismatch; say so instead of looping.
+    runApp(_FatalErrorApp(message: error.toString()));
+  }
+}
+
+class _FatalErrorApp extends StatelessWidget {
+  const _FatalErrorApp({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              'Cannot use the configured backend:\n\n$message\n\n'
+              'Update the server or edit '
+              '~/.config/quadrant-todo/backend.json.',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

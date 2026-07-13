@@ -39,7 +39,9 @@ class AppState extends ChangeNotifier {
       error = 'Backend unreachable.';
       await _recover();
     } on ProblemDetailsException catch (problem) {
-      error = problem.detail ?? problem.title;
+      error = problem.status == 401
+          ? 'Authentication failed — check the backend settings.'
+          : problem.detail ?? problem.title;
     } finally {
       loading = false;
       notifyListeners();
@@ -110,6 +112,19 @@ class AppState extends ChangeNotifier {
   Future<List<TaskDto>> tagTasks(String tagId, {String status = 'open'}) =>
       _client.tagTasks(tagId, status: status);
 
+  BackendMode get mode => _connection.mode;
+
+  /// Applies a new backend connection (mode switch from the settings
+  /// sheet). The old backend is shut down; the new dataset replaces the
+  /// visible one entirely — nothing is merged.
+  Future<void> switchConnection(BackendConnection next) async {
+    final old = _connection;
+    _connection = next;
+    old.client.close();
+    await old.shutdown?.call();
+    await refresh();
+  }
+
   /// App resume hook: verify the embedded backend survived suspension and
   /// restart it when it did not (see backend-lifecycle docs).
   Future<void> ensureBackendHealthy() async {
@@ -129,7 +144,11 @@ class AppState extends ChangeNotifier {
     } on ProblemDetailsException catch (problem) {
       // 412: stale version. The refresh below fetches current state; the
       // user re-applies their change deliberately.
-      error = problem.status == 412 ? null : problem.detail ?? problem.title;
+      error = switch (problem.status) {
+        412 => null,
+        401 => 'Authentication failed — check the backend settings.',
+        _ => problem.detail ?? problem.title,
+      };
     } on ApiUnavailableException {
       error = 'Backend unreachable.';
       await _recover();

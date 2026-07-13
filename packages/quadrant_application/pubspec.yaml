@@ -1,6 +1,6 @@
 name: quadrant_application
 description: Application commands, queries, and services for Quadrant Todo.
-version: 0.1.0
+version: 1.7.0
 publish_to: none
 resolution: workspace
 
@@ -8,7 +8,9 @@ environment:
   sdk: ^3.9.0
 
 dependencies:
-  quadrant_domain: ^0.1.0
+  quadrant_domain: ^1.0.0
+  quadrant_temporal: ^1.2.0
+  timezone: ^0.10.0
 
 dev_dependencies:
   test: ^1.25.0

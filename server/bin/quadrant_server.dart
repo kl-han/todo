@@ -110,7 +110,14 @@ void _backup(ServerConfig config, List<String> args) {
   } finally {
     database.close();
   }
-  stdout.writeln('backed up vault "$vault" to $destination');
+  // A backup nobody verified is a hope, not a backup.
+  final problem = QuadrantDatabase.verifySnapshot(destination);
+  if (problem != null) {
+    stderr.writeln('backup verification FAILED: $problem');
+    exitCode = 70;
+    return;
+  }
+  stdout.writeln('backed up vault "$vault" to $destination (verified)');
 }
 
 void _printUsage(ArgParser parser) {

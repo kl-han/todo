@@ -1,8 +1,10 @@
 import 'package:quadrant_domain/quadrant_domain.dart';
 
+import '../commands/schedule_patch.dart';
 import '../errors.dart';
 import '../queries/task_query.dart';
 import '../repositories.dart';
+import '../temporal/timezones.dart';
 
 /// Commands and queries for tasks. All backend routes for tasks terminate
 /// here; handlers do HTTP translation only.
@@ -23,6 +25,8 @@ class TaskService {
     String notes = '',
     bool isUrgent = false,
     bool isImportant = false,
+    TaskSchedule schedule = const TaskSchedule.none(),
+    int? estimatedMinutes,
   }) {
     final now = _clock();
     final task = Task(
@@ -31,6 +35,10 @@ class TaskService {
       notes: validateTaskNotes(notes),
       isUrgent: isUrgent,
       isImportant: isImportant,
+      schedule: validateScheduleTimezone(schedule),
+      estimatedMinutes: estimatedMinutes == null
+          ? null
+          : validateEstimatedMinutes(estimatedMinutes),
       createdAt: now,
       updatedAt: now,
     );
@@ -47,6 +55,8 @@ class TaskService {
     return task;
   }
 
+  /// [estimatedMinutes] uses the nullable-override pattern: absent means
+  /// unchanged, `() => null` clears, `() => n` sets.
   Task update(
     String id, {
     int? expectedVersion,
@@ -55,19 +65,30 @@ class TaskService {
     bool? isUrgent,
     bool? isImportant,
     TaskStatus? status,
+    SchedulePatch? schedule,
+    int? Function()? estimatedMinutes,
   }) {
     var task = get(id);
     _checkVersion(task.version, expectedVersion);
 
+    final hasScheduleChange = schedule != null && !schedule.isEmpty;
     final now = _clock();
     if (title != null || notes != null || isUrgent != null ||
-        isImportant != null) {
+        isImportant != null || hasScheduleChange || estimatedMinutes != null) {
+      final minutes = estimatedMinutes?.call();
       task = task.edit(
         now,
         title: title == null ? null : validateTaskTitle(title),
         notes: notes == null ? null : validateTaskNotes(notes),
         isUrgent: isUrgent,
         isImportant: isImportant,
+        schedule: hasScheduleChange
+            ? validateScheduleTimezone(schedule.applyTo(task.schedule))
+            : null,
+        estimatedMinutes: estimatedMinutes == null
+            ? null
+            : () =>
+                minutes == null ? null : validateEstimatedMinutes(minutes),
       );
     }
     if (status != null && status != task.status) {

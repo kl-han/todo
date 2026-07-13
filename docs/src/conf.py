@@ -3,8 +3,8 @@
 project = "Quadrant Todo"
 author = "Karl Han"
 copyright = "2026, Karl Han"
-version = "0.6"
-release = "0.6.0"
+version = "1.7"
+release = "1.7.0"
 
 extensions = []
 

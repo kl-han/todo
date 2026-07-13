@@ -1,0 +1,14 @@
+name: quadrant_temporal
+description: Recurrence rules and occurrence generation for Quadrant Todo.
+version: 1.7.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  quadrant_domain: ^1.1.0
+
+dev_dependencies:
+  test: ^1.25.0

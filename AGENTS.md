@@ -26,8 +26,8 @@
 ## Layout
 
 - `api/` — normative OpenAPI contract and problem-type registry.
-- `packages/` — pure-Dart packages (domain, application, store, api_server,
-  api_client, backend_host, conformance).
+- `packages/` — pure-Dart packages (domain, temporal, usage, application,
+  store, api_server, api_client, backend_host, conformance, agent).
 - `server/` — standalone backend executable.
 - `apps/quadrant_todo/` — Flutter application (not a pub workspace member;
   requires the Flutter SDK).

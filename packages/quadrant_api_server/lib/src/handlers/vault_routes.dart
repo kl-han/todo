@@ -45,11 +45,14 @@ void mountVaultRoutes(Router router, ApiServerConfig config) {
   router.post('/api/v1/vaults/<vaultId>/tasks', (Request request) async {
     final services = vault(request);
     final body = await readJsonObject(request);
+    final estimatedMinutes = optional<int>(body, 'estimated_minutes');
     final task = services.tasks.create(
       title: required_<String>(body, 'title'),
       notes: optional<String>(body, 'notes') ?? '',
       isUrgent: optional<bool>(body, 'is_urgent') ?? false,
       isImportant: optional<bool>(body, 'is_important') ?? false,
+      schedule: _parseSchedulePatch(body).applyTo(const TaskSchedule.none()),
+      estimatedMinutes: estimatedMinutes,
     );
     return taskResponse(services, task, status: 201);
   });
@@ -65,6 +68,11 @@ void mountVaultRoutes(Router router, ApiServerConfig config) {
     final services = vault(request);
     final body = await readJsonObject(request);
     final statusName = optional<String>(body, 'status');
+    // Explicit JSON null clears estimated_minutes; an absent key leaves
+    // it unchanged.
+    final estimatedMinutes = body.containsKey('estimated_minutes')
+        ? optional<int>(body, 'estimated_minutes')
+        : null;
     final task = services.tasks.update(
       request.params['taskId']!,
       expectedVersion: expectedVersionFrom(request),
@@ -73,6 +81,10 @@ void mountVaultRoutes(Router router, ApiServerConfig config) {
       isUrgent: optional<bool>(body, 'is_urgent'),
       isImportant: optional<bool>(body, 'is_important'),
       status: statusName == null ? null : _parseStatus(statusName),
+      schedule: _parseSchedulePatch(body),
+      estimatedMinutes: body.containsKey('estimated_minutes')
+          ? () => estimatedMinutes
+          : null,
     );
     return taskResponse(services, task);
   });
@@ -111,6 +123,415 @@ void mountVaultRoutes(Router router, ApiServerConfig config) {
       request.params['tagId']!,
     );
     return taskResponse(services, task);
+  });
+
+  // ---- Recurrence ----
+
+  router.put('/api/v1/vaults/<vaultId>/tasks/<taskId>/recurrence',
+      (Request request) async {
+    final services = vault(request);
+    final body = await readJsonObject(request);
+    final taskId = request.params['taskId']!;
+    final rule = services.recurrence.setRecurrence(
+      taskId,
+      dtstart: _parseDate(required_<String>(body, 'dtstart'), 'dtstart')!,
+      rrule: required_<String>(body, 'rrule'),
+    );
+    return _json(200, recurrenceToJson(rule, taskId));
+  });
+
+  router.get('/api/v1/vaults/<vaultId>/tasks/<taskId>/recurrence',
+      (Request request) {
+    final services = vault(request);
+    final taskId = request.params['taskId']!;
+    final rule = services.recurrence.getRecurrence(taskId);
+    return _json(200, recurrenceToJson(rule, taskId));
+  });
+
+  router.delete('/api/v1/vaults/<vaultId>/tasks/<taskId>/recurrence',
+      (Request request) {
+    final services = vault(request);
+    services.recurrence.clearRecurrence(request.params['taskId']!);
+    return Response(204);
+  });
+
+  router.get('/api/v1/vaults/<vaultId>/occurrences', (Request request) {
+    final services = vault(request);
+    final params = request.url.queryParameters;
+    final occurrences = services.recurrence.occurrences(
+      from: _parseDateParam(params, 'from'),
+      to: _parseDateParam(params, 'to'),
+      status: _parseOccurrenceFilter(params['status'] ?? 'all'),
+      taskId: params['task_id'],
+    );
+    return _json(200, {
+      'occurrences': [
+        for (final occurrence in occurrences) occurrenceToJson(occurrence),
+      ],
+    });
+  });
+
+  router.get('/api/v1/vaults/<vaultId>/occurrences/<occurrenceId>',
+      (Request request) {
+    final services = vault(request);
+    final occurrence =
+        services.recurrence.getOccurrence(request.params['occurrenceId']!);
+    return withEtag(
+        _json(200, occurrenceToJson(occurrence)), occurrence.version);
+  });
+
+  router.patch('/api/v1/vaults/<vaultId>/occurrences/<occurrenceId>',
+      (Request request) async {
+    final services = vault(request);
+    final body = await readJsonObject(request);
+    final id = request.params['occurrenceId']!;
+    final expectedVersion = expectedVersionFrom(request);
+
+    final statusName = optional<String>(body, 'status');
+    final date = _parseDate(
+        optional<String>(body, 'occurrence_date'), 'occurrence_date');
+    final atUtc = _parseInstant(
+        optional<String>(body, 'occurrence_at_utc'), 'occurrence_at_utc');
+    if (statusName == null && date == null && atUtc == null) {
+      throw MalformedRequestError(
+        'Patch a status, an occurrence_date, or an occurrence_at_utc.',
+      );
+    }
+    if (statusName != null && (date != null || atUtc != null)) {
+      throw MalformedRequestError(
+        'Patch either the status or the schedule, not both.',
+      );
+    }
+
+    final occurrence = statusName != null
+        ? services.recurrence.setOccurrenceStatus(
+            id,
+            _parseOccurrenceStatus(statusName),
+            expectedVersion: expectedVersion,
+          )
+        : services.recurrence.rescheduleOccurrence(
+            id,
+            date: date,
+            atUtc: atUtc,
+            expectedVersion: expectedVersion,
+          );
+    return withEtag(
+        _json(200, occurrenceToJson(occurrence)), occurrence.version);
+  });
+
+  // ---- Reminders ----
+
+  router.get('/api/v1/vaults/<vaultId>/reminders', (Request request) {
+    final services = vault(request);
+    final params = request.url.queryParameters;
+    final reminders = services.reminders.list(
+      state: _parseReminderFilter(params['state'] ?? 'all'),
+      until: _parseInstant(params['until'], 'until'),
+    );
+    return _json(200, {
+      'reminders': [
+        for (final resolved in reminders) reminderToJson(resolved),
+      ],
+    });
+  });
+
+  router.post('/api/v1/vaults/<vaultId>/reminders', (Request request) async {
+    final services = vault(request);
+    final body = await readJsonObject(request);
+    final resolved = services.reminders.create(
+      taskId: optional<String>(body, 'task_id'),
+      occurrenceId: optional<String>(body, 'occurrence_id'),
+      trigger:
+          _parseReminderTrigger(required_<String>(body, 'trigger_type')),
+      triggerAtUtc: _parseInstant(
+          optional<String>(body, 'trigger_at_utc'), 'trigger_at_utc'),
+      offsetMinutes: optional<int>(body, 'offset_minutes'),
+      channel: optional<String>(body, 'channel') ?? 'notification',
+    );
+    return withEtag(
+        _json(201, reminderToJson(resolved)), resolved.reminder.version);
+  });
+
+  router.get('/api/v1/vaults/<vaultId>/reminders/<reminderId>',
+      (Request request) {
+    final services = vault(request);
+    final resolved = services.reminders.get(request.params['reminderId']!);
+    return withEtag(
+        _json(200, reminderToJson(resolved)), resolved.reminder.version);
+  });
+
+  router.patch('/api/v1/vaults/<vaultId>/reminders/<reminderId>',
+      (Request request) async {
+    final services = vault(request);
+    final body = await readJsonObject(request);
+    final stateName = optional<String>(body, 'state');
+    final resolved = services.reminders.update(
+      request.params['reminderId']!,
+      state: stateName == null ? null : _parseReminderState(stateName),
+      platformScheduleIdProvided: body.containsKey('platform_schedule_id'),
+      platformScheduleId: optional<String>(body, 'platform_schedule_id'),
+      expectedVersion: expectedVersionFrom(request),
+    );
+    return withEtag(
+        _json(200, reminderToJson(resolved)), resolved.reminder.version);
+  });
+
+  router.delete('/api/v1/vaults/<vaultId>/reminders/<reminderId>',
+      (Request request) {
+    final services = vault(request);
+    services.reminders.delete(
+      request.params['reminderId']!,
+      expectedVersion: expectedVersionFrom(request),
+    );
+    return Response(204);
+  });
+
+  // ---- Focus sessions ----
+
+  router.get('/api/v1/vaults/<vaultId>/focus-sessions', (Request request) {
+    final services = vault(request);
+    final params = request.url.queryParameters;
+    final rawActive = params['active'];
+    if (rawActive != null && rawActive != 'true' && rawActive != 'false') {
+      throw MalformedRequestError('active must be true or false.');
+    }
+    final sessions = services.focus.list(
+      active: rawActive == null ? null : rawActive == 'true',
+      taskId: params['task_id'],
+    );
+    return _json(200, {
+      'focus_sessions': [
+        for (final session in sessions) focusSessionToJson(session),
+      ],
+    });
+  });
+
+  router.post('/api/v1/vaults/<vaultId>/focus-sessions',
+      (Request request) async {
+    final services = vault(request);
+    final body = await readJsonObject(request);
+    final session = services.focus.start(
+      taskId: optional<String>(body, 'task_id'),
+      occurrenceId: optional<String>(body, 'occurrence_id'),
+      deviceId: optional<String>(body, 'device_id'),
+      plannedFocusSeconds: required_<int>(body, 'planned_focus_seconds'),
+      plannedBreakSeconds: optional<int>(body, 'planned_break_seconds') ?? 0,
+      notes: optional<String>(body, 'notes') ?? '',
+    );
+    return withEtag(
+        _json(201, focusSessionToJson(session)), session.version);
+  });
+
+  router.get('/api/v1/vaults/<vaultId>/focus-sessions/<sessionId>',
+      (Request request) {
+    final services = vault(request);
+    final session = services.focus.get(request.params['sessionId']!);
+    return withEtag(
+        _json(200, focusSessionToJson(session)), session.version);
+  });
+
+  router.patch('/api/v1/vaults/<vaultId>/focus-sessions/<sessionId>',
+      (Request request) async {
+    final services = vault(request);
+    final body = await readJsonObject(request);
+    final id = request.params['sessionId']!;
+    final expectedVersion = expectedVersionFrom(request);
+    final action = optional<String>(body, 'action');
+    final resultName = optional<String>(body, 'result');
+    if ((action == null) == (resultName == null)) {
+      throw MalformedRequestError(
+        'Patch exactly one of action (pause/resume) and result.',
+      );
+    }
+    final FocusSession session;
+    if (action != null) {
+      session = switch (action) {
+        'pause' =>
+          services.focus.pause(id, expectedVersion: expectedVersion),
+        'resume' =>
+          services.focus.resume(id, expectedVersion: expectedVersion),
+        _ => throw MalformedRequestError('Unknown action "$action".'),
+      };
+    } else {
+      session = services.focus.finish(
+        id,
+        _parseFocusResult(resultName!),
+        notes: optional<String>(body, 'notes'),
+        expectedVersion: expectedVersion,
+      );
+    }
+    return withEtag(
+        _json(200, focusSessionToJson(session)), session.version);
+  });
+
+  // ---- Daily plans ----
+
+  PlainDate planDate(Request request) =>
+      _parseDate(request.params['localDate'], 'local_date')!;
+
+  router.get('/api/v1/vaults/<vaultId>/plans/<localDate>',
+      (Request request) {
+    final services = vault(request);
+    final date = planDate(request);
+    final plan = services.planning.plan(date);
+    return withEtag(
+      _json(200, planToJson(plan, services.planning.items(date))),
+      plan.version,
+    );
+  });
+
+  router.patch('/api/v1/vaults/<vaultId>/plans/<localDate>',
+      (Request request) async {
+    final services = vault(request);
+    final date = planDate(request);
+    final body = await readJsonObject(request);
+    final statusName = optional<String>(body, 'status');
+    final plan = services.planning.review(
+      date,
+      reviewNotes: optional<String>(body, 'review_notes'),
+      status: statusName == null ? null : _parsePlanStatus(statusName),
+      expectedVersion: expectedVersionFrom(request),
+    );
+    return withEtag(
+      _json(200, planToJson(plan, services.planning.items(date))),
+      plan.version,
+    );
+  });
+
+  router.post('/api/v1/vaults/<vaultId>/plans/<localDate>/items',
+      (Request request) async {
+    final services = vault(request);
+    final body = await readJsonObject(request);
+    final item = services.planning.addItem(
+      planDate(request),
+      taskId: optional<String>(body, 'task_id'),
+      occurrenceId: optional<String>(body, 'occurrence_id'),
+      plannedMinutes: optional<int>(body, 'planned_minutes'),
+      scheduledStart: optional<String>(body, 'scheduled_start'),
+    );
+    return withEtag(_json(201, planItemToJson(item)), item.version);
+  });
+
+  router.patch('/api/v1/vaults/<vaultId>/plans/<localDate>/items/<itemId>',
+      (Request request) async {
+    final services = vault(request);
+    final body = await readJsonObject(request);
+    final outcomeName = body.containsKey('outcome')
+        ? optional<String>(body, 'outcome')
+        : null;
+    final item = services.planning.updateItem(
+      planDate(request),
+      request.params['itemId']!,
+      position: optional<int>(body, 'position'),
+      plannedMinutes: body.containsKey('planned_minutes')
+          ? () => optional<int>(body, 'planned_minutes')
+          : null,
+      scheduledStart: body.containsKey('scheduled_start')
+          ? () => optional<String>(body, 'scheduled_start')
+          : null,
+      outcome: body.containsKey('outcome')
+          ? () => outcomeName == null ? null : _parseOutcome(outcomeName)
+          : null,
+      expectedVersion: expectedVersionFrom(request),
+    );
+    return withEtag(_json(200, planItemToJson(item)), item.version);
+  });
+
+  router.delete('/api/v1/vaults/<vaultId>/plans/<localDate>/items/<itemId>',
+      (Request request) {
+    final services = vault(request);
+    services.planning.removeItem(
+      planDate(request),
+      request.params['itemId']!,
+      expectedVersion: expectedVersionFrom(request),
+    );
+    return Response(204);
+  });
+
+  router.get('/api/v1/vaults/<vaultId>/plans/<localDate>/accuracy',
+      (Request request) {
+    final services = vault(request);
+    final accuracy = services.planning.accuracy(planDate(request));
+    return _json(200, {
+      'local_date': accuracy.localDate.toString(),
+      'planned_minutes': accuracy.plannedMinutes,
+      'actual_focus_seconds': accuracy.actualFocusSeconds,
+      'focus_session_count': accuracy.focusSessionCount,
+    });
+  });
+
+  // ---- Weekly review ----
+
+  router.get('/api/v1/vaults/<vaultId>/reports/weekly', (Request request) {
+    final services = vault(request);
+    final params = request.url.queryParameters;
+    final weekStart = _parseDate(params['week_start'], 'week_start');
+    if (weekStart == null) {
+      throw MalformedRequestError(
+        'Query parameter "week_start" (a Monday) is required.',
+      );
+    }
+    final report = services.weeklyReview.report(weekStart);
+    final format = params['format'] ?? 'json';
+    return switch (format) {
+      'json' => _json(200, report.toJson()),
+      'csv' => Response(200,
+          body: report.toCsv(), headers: {'content-type': 'text/csv'}),
+      _ => throw MalformedRequestError('Unknown format "$format".'),
+    };
+  });
+
+  router.put('/api/v1/vaults/<vaultId>/reports/weekly/<weekStart>/snapshot',
+      (Request request) async {
+    final services = vault(request);
+    final body = await readJsonObject(request);
+    final snapshot = services.weeklyReview.finalize(
+      _parseDate(request.params['weekStart'], 'week_start')!,
+      userNotes: optional<String>(body, 'user_notes') ?? '',
+    );
+    return _json(200, _snapshotJson(snapshot));
+  });
+
+  router.get('/api/v1/vaults/<vaultId>/reports/weekly/<weekStart>/snapshot',
+      (Request request) {
+    final services = vault(request);
+    final snapshot = services.weeklyReview
+        .snapshot(_parseDate(request.params['weekStart'], 'week_start')!);
+    return _json(200, _snapshotJson(snapshot));
+  });
+
+  // ---- Agenda read model ----
+
+  router.get('/api/v1/vaults/<vaultId>/agenda', (Request request) {
+    final services = vault(request);
+    final params = request.url.queryParameters;
+    final report = services.agenda.agenda(
+      from: _parseDateParam(params, 'from'),
+      to: _parseDateParam(params, 'to'),
+      status: _parseStatusFilter(params['status'] ?? 'open'),
+    );
+    return _json(200, {
+      'from': report.from.toString(),
+      'to': report.to.toString(),
+      'status': report.status,
+      'days': [
+        for (final day in report.days)
+          {
+            'date': day.date.toString(),
+            'entries': [
+              for (final entry in day.entries)
+                {
+                  'kind': entry.kind.wireName,
+                  'time_local': entry.timeLocal,
+                  'task': taskToJson(
+                    entry.task,
+                    services.tasks.tagIdsOf(entry.task.id),
+                  ),
+                },
+            ],
+          },
+      ],
+    });
   });
 
   // ---- Quadrant read model ----
@@ -265,4 +686,134 @@ TaskSort _parseSort(String value) {
   } on ArgumentError {
     throw MalformedRequestError('Unknown sort "$value".');
   }
+}
+
+Map<String, Object?> _snapshotJson(WeeklyReportSnapshot snapshot) => {
+      'week_start': snapshot.weekStart.toString(),
+      'generated_at': snapshot.generatedAt.toIso8601String(),
+      'report_version': snapshot.reportVersion,
+      'summary': jsonDecode(snapshot.summaryJson),
+      'user_notes': snapshot.userNotes,
+    };
+
+PlanStatus _parsePlanStatus(String value) {
+  try {
+    return PlanStatus.fromWire(value);
+  } on ArgumentError {
+    throw MalformedRequestError('Unknown plan status "$value".');
+  }
+}
+
+PlanOutcome _parseOutcome(String value) {
+  try {
+    return PlanOutcome.fromWire(value);
+  } on ArgumentError {
+    throw MalformedRequestError('Unknown outcome "$value".');
+  }
+}
+
+FocusResult _parseFocusResult(String value) {
+  try {
+    return FocusResult.fromWire(value);
+  } on ArgumentError {
+    throw MalformedRequestError('Unknown focus result "$value".');
+  }
+}
+
+OccurrenceFilter _parseOccurrenceFilter(String value) {
+  try {
+    return OccurrenceFilter.fromWire(value);
+  } on ArgumentError {
+    throw MalformedRequestError('Unknown occurrence status "$value".');
+  }
+}
+
+OccurrenceStatus _parseOccurrenceStatus(String value) {
+  try {
+    return OccurrenceStatus.fromWire(value);
+  } on ArgumentError {
+    throw MalformedRequestError('Unknown occurrence status "$value".');
+  }
+}
+
+ReminderFilter _parseReminderFilter(String value) {
+  try {
+    return ReminderFilter.fromWire(value);
+  } on ArgumentError {
+    throw MalformedRequestError('Unknown reminder state "$value".');
+  }
+}
+
+ReminderState _parseReminderState(String value) {
+  try {
+    return ReminderState.fromWire(value);
+  } on ArgumentError {
+    throw MalformedRequestError('Unknown reminder state "$value".');
+  }
+}
+
+ReminderTrigger _parseReminderTrigger(String value) {
+  try {
+    return ReminderTrigger.fromWire(value);
+  } on ArgumentError {
+    throw MalformedRequestError('Unknown trigger type "$value".');
+  }
+}
+
+/// Parses the schedule fields shared by TaskCreate and TaskPatch. The
+/// cross-field rules are enforced by the domain after merging; this only
+/// converts wire values, with 400s for shapes that cannot parse.
+SchedulePatch _parseSchedulePatch(Map<String, Object?> body) => SchedulePatch(
+      startKind: _parseKind(optional<String>(body, 'start_kind')),
+      startDate: _parseDate(optional<String>(body, 'start_date'), 'start_date'),
+      startAtUtc:
+          _parseInstant(optional<String>(body, 'start_at_utc'), 'start_at_utc'),
+      dueKind: _parseKind(optional<String>(body, 'due_kind')),
+      dueDate: _parseDate(optional<String>(body, 'due_date'), 'due_date'),
+      dueAtUtc:
+          _parseInstant(optional<String>(body, 'due_at_utc'), 'due_at_utc'),
+      timezoneId: optional<String>(body, 'timezone_id'),
+    );
+
+ScheduleKind? _parseKind(String? value) {
+  if (value == null) return null;
+  try {
+    return ScheduleKind.fromWire(value);
+  } on ArgumentError {
+    throw MalformedRequestError('Unknown schedule kind "$value".');
+  }
+}
+
+PlainDate? _parseDate(String? value, String field) {
+  if (value == null) return null;
+  try {
+    return PlainDate.parse(value);
+  } on DomainValidationError catch (error) {
+    throw MalformedRequestError('Field "$field": ${error.message}');
+  }
+}
+
+PlainDate _parseDateParam(Map<String, String> params, String name) {
+  final value = params[name];
+  if (value == null) {
+    throw MalformedRequestError('Query parameter "$name" is required.');
+  }
+  return _parseDate(value, name)!;
+}
+
+/// Instants must carry an explicit UTC designator or offset; a naive
+/// local time would silently mean "server timezone", which no request is
+/// allowed to depend on.
+DateTime? _parseInstant(String? value, String field) {
+  if (value == null) return null;
+  final hasDesignator =
+      value.endsWith('Z') || RegExp(r'[+-]\d{2}:\d{2}$').hasMatch(value);
+  final DateTime? parsed = DateTime.tryParse(value);
+  if (!hasDesignator || parsed == null) {
+    throw MalformedRequestError(
+      'Field "$field" must be an RFC 3339 instant with a UTC designator '
+      'or offset.',
+    );
+  }
+  return parsed.toUtc();
 }

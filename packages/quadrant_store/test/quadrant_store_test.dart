@@ -77,6 +77,82 @@ void main() {
       expect(loaded.version, 7);
     });
 
+    test('round-trips schedule fields', () {
+      final original = Task(
+        id: EntityId.generate(),
+        title: 'scheduled',
+        notes: '',
+        isUrgent: false,
+        isImportant: false,
+        schedule: TaskSchedule(
+          startKind: ScheduleKind.date,
+          startDate: PlainDate.parse('2026-07-19'),
+          dueKind: ScheduleKind.datetime,
+          dueAtUtc: DateTime.utc(2026, 7, 20, 20),
+          timezoneId: 'America/Chicago',
+        ),
+        estimatedMinutes: 90,
+        createdAt: DateTime.utc(2026, 1, 1),
+        updatedAt: DateTime.utc(2026, 1, 1),
+      );
+      tasks.insert(original);
+      final loaded = tasks.findById(original.id)!;
+      expect(loaded.schedule.startKind, ScheduleKind.date);
+      expect(loaded.schedule.startDate, PlainDate.parse('2026-07-19'));
+      expect(loaded.schedule.startAtUtc, isNull);
+      expect(loaded.schedule.dueKind, ScheduleKind.datetime);
+      expect(loaded.schedule.dueAtUtc, DateTime.utc(2026, 7, 20, 20));
+      expect(loaded.schedule.timezoneId, 'America/Chicago');
+      expect(loaded.estimatedMinutes, 90);
+    });
+
+    test('stores date-only values as plain dates, not instants', () {
+      final original = Task(
+        id: EntityId.generate(),
+        title: 'date-only',
+        notes: '',
+        isUrgent: false,
+        isImportant: false,
+        schedule: TaskSchedule(
+          dueKind: ScheduleKind.date,
+          dueDate: PlainDate.parse('2026-07-20'),
+        ),
+        createdAt: DateTime.utc(2026, 1, 1),
+        updatedAt: DateTime.utc(2026, 1, 1),
+      );
+      tasks.insert(original);
+      final raw = db.db
+          .select('SELECT due_date FROM tasks WHERE id = ?', [original.id])
+          .first['due_date'];
+      expect(raw, '2026-07-20');
+    });
+
+    test('scheduled() returns only scheduled, status-matching tasks', () {
+      makeTask(title: 'unscheduled');
+      final due = Task(
+        id: EntityId.generate(),
+        title: 'due',
+        notes: '',
+        isUrgent: false,
+        isImportant: false,
+        schedule: TaskSchedule(
+          dueKind: ScheduleKind.date,
+          dueDate: PlainDate.parse('2026-07-20'),
+        ),
+        createdAt: DateTime.utc(2026, 1, 1),
+        updatedAt: DateTime.utc(2026, 1, 1),
+      );
+      tasks.insert(due);
+      tasks.update(due.complete(DateTime.utc(2026, 1, 2)));
+
+      expect(tasks.scheduled(StatusFilter.open), isEmpty);
+      expect(
+        tasks.scheduled(StatusFilter.completed).map((t) => t.title),
+        ['due'],
+      );
+      expect(tasks.scheduled(StatusFilter.all), hasLength(1));
+    });
+
     test('applies the matrix_modified_asc sort', () {
       final q4 = makeTask(title: 'q4');
       final q1old = makeTask(
@@ -163,6 +239,89 @@ void main() {
       expect(restored.userVersion, schemaVersion);
       restored.close();
       dir.deleteSync(recursive: true);
+    });
+  });
+
+  group('recovery and verification', () {
+    late Directory dir;
+
+    setUp(() => dir = Directory.systemTemp.createTempSync('quadrant-rec-'));
+    tearDown(() => dir.deleteSync(recursive: true));
+
+    test('openWithRecovery moves a corrupt file aside and starts fresh',
+        () {
+      final path = '${dir.path}/vault.sqlite3';
+      File(path).writeAsStringSync('this is not a sqlite database at all');
+
+      String? movedTo;
+      final database = QuadrantDatabase.openWithRecovery(
+        path,
+        onCorruptMovedAside: (destination) => movedTo = destination,
+      );
+      expect(database.userVersion, schemaVersion);
+      database.close();
+
+      expect(movedTo, isNotNull);
+      expect(File(movedTo!).existsSync(), isTrue,
+          reason: 'the damaged file must survive for triage');
+      expect(
+        File(movedTo!).readAsStringSync(),
+        contains('not a sqlite database'),
+      );
+    });
+
+    test('openWithRecovery leaves healthy vaults untouched', () {
+      final path = '${dir.path}/vault.sqlite3';
+      final first = QuadrantDatabase.open(path);
+      SqliteTaskRepository(first).insert(Task(
+        id: EntityId.generate(),
+        title: 'keep me',
+        notes: '',
+        isUrgent: false,
+        isImportant: false,
+        createdAt: DateTime.utc(2026),
+        updatedAt: DateTime.utc(2026),
+      ));
+      first.close();
+
+      final reopened = QuadrantDatabase.openWithRecovery(path);
+      final titles = reopened.db
+          .select('SELECT title FROM tasks')
+          .map((row) => row['title']);
+      expect(titles, ['keep me']);
+      reopened.close();
+    });
+
+    test('openWithRecovery still refuses newer-schema databases', () {
+      final path = '${dir.path}/vault.sqlite3';
+      final database = QuadrantDatabase.open(path);
+      database.db.execute('PRAGMA user_version = ${schemaVersion + 5}');
+      database.close();
+
+      expect(
+        () => QuadrantDatabase.openWithRecovery(path),
+        throwsStateError,
+        reason: 'a downgrade is not corruption and must not be recovered',
+      );
+      expect(File(path).existsSync(), isTrue);
+    });
+
+    test('verifySnapshot accepts good snapshots and names bad ones', () {
+      final path = '${dir.path}/vault.sqlite3';
+      final database = QuadrantDatabase.open(path);
+      database.backupTo('${dir.path}/good.sqlite3');
+      database.close();
+
+      expect(QuadrantDatabase.verifySnapshot('${dir.path}/good.sqlite3'),
+          isNull);
+      expect(QuadrantDatabase.verifySnapshot('${dir.path}/missing.sqlite3'),
+          contains('does not exist'));
+
+      File('${dir.path}/garbage.sqlite3').writeAsStringSync('garbage');
+      expect(
+        QuadrantDatabase.verifySnapshot('${dir.path}/garbage.sqlite3'),
+        isNotNull,
+      );
     });
   });
 

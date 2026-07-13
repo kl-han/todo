@@ -13,7 +13,7 @@ System API
      - Process readiness
    * - ``GET``
      - ``/api/v1/capabilities``
-     - API version, schema version, supported features (v0.7)
+     - API version, schema version, supported features
    * - ``GET``
      - ``/api/v1/vaults``
      - List accessible vaults; primarily remote mode
@@ -39,6 +39,16 @@ to detect a dead embedded backend.
 ``backend`` is the only field that may differ between backend kinds
 (``embedded`` or ``standalone``); everything else in the API is
 behaviorally identical by contract.
+
+Capabilities
+------------
+
+.. versionadded:: 0.7
+
+``GET /api/v1/capabilities`` (authenticated) reports ``api_version``,
+``schema_version``, and the ``features`` list. Remote clients use it to
+negotiate before issuing data requests; see :doc:`compatibility` for the
+policy.
 
 Vaults
 ------

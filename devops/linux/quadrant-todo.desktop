@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Quadrant Todo
+Comment=Eisenhower-matrix task manager
+Exec=quadrant_todo
+Icon=quadrant-todo
+Terminal=false
+Categories=Office;ProjectManagement;
+Keywords=todo;tasks;eisenhower;matrix;
