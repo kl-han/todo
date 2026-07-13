@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
@@ -13,7 +15,17 @@ import '../problem.dart';
 /// between backends are prohibited.
 Handler buildApiHandler(ApiServerConfig config) {
   final router = Router(notFoundHandler: notFoundProblem)
-    ..get('/api/v1/health', healthHandler(config));
+    ..get('/api/v1/health', healthHandler(config))
+    ..get('/api/v1/vaults', (Request request) {
+      return Response.ok(
+        jsonEncode({
+          'vaults': [
+            for (final name in config.listVaults()) {'id': name},
+          ],
+        }),
+        headers: {'content-type': 'application/json'},
+      );
+    });
   mountVaultRoutes(router, config);
 
   return const Pipeline()

@@ -51,6 +51,15 @@ class QuadrantApiClient {
     throw ApiUnavailableException(baseUrl, lastError);
   }
 
+  /// GET /api/v1/vaults — accessible vault names.
+  Future<List<String>> listVaults() async {
+    final json = await _request('GET', '/api/v1/vaults');
+    return [
+      for (final vault in json['vaults'] as List<Object?>)
+        (vault as Map<String, Object?>)['id'] as String,
+    ];
+  }
+
   // ---- Tasks ----
 
   Future<List<TaskDto>> listTasks({

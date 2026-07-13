@@ -1,0 +1,35 @@
+# systemd user service for the Quadrant Todo standalone server.
+#
+# Install:
+#   mkdir -p ~/.config/systemd/user
+#   cp quadrant-server.service ~/.config/systemd/user/
+#   install -m 600 /dev/stdin ~/.config/quadrant-todo/token <<< "$(openssl rand -base64 32)"
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now quadrant-server
+#   journalctl --user -u quadrant-server -f
+#
+# systemd supervises the foreground process; --daemon is for systems
+# without a supervisor.
+
+[Unit]
+Description=Quadrant Todo standalone server
+After=network.target
+
+[Service]
+Type=exec
+ExecStart=%h/.local/bin/quadrant_server serve \
+    --host 127.0.0.1 \
+    --port 8787 \
+    --token-file %h/.config/quadrant-todo/token
+Restart=on-failure
+RestartSec=2
+
+# Hardening: the server needs only its vault directory.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.local/share/quadrant-todo
+
+[Install]
+WantedBy=default.target
