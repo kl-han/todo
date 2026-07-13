@@ -735,6 +735,54 @@ void runBackendContractSuite(
     });
   });
 
+  group('weekly review contract', () {
+    test('the report computes facts and the snapshot round-trips',
+        () async {
+      // A far-future Monday keeps this week isolated from other tests.
+      const monday = '2035-01-01'; // 2035-01-01 is a Monday
+      final task = await client.createTask(
+          title: 'review-me', isImportant: true);
+      await client.updateTask(task.id, status: 'completed');
+
+      final report = await client.weeklyReport(monday);
+      expect(report['week_start'], monday);
+      expect(report['week_end'], '2035-01-07');
+      for (final section in [
+        'completed', 'carryover', 'due_performance', 'focus',
+        'plan_accuracy', 'q2_investment', 'delegated_followup',
+        'cleanup_candidates',
+      ]) {
+        expect(report.containsKey(section), isTrue, reason: section);
+      }
+
+      final snapshot = await client.finalizeWeeklyReport(monday,
+          userNotes: 'finalized by conformance');
+      expect(snapshot['report_version'], 1);
+      expect(snapshot['user_notes'], 'finalized by conformance');
+
+      final read = await client.weeklyReportSnapshot(monday);
+      expect(read['week_start'], monday);
+      expect((read['summary'] as Map<String, Object?>)['week_end'],
+          '2035-01-07');
+    });
+
+    test('non-Monday weeks and missing snapshots are problems', () async {
+      await expectLater(
+        client.weeklyReport('2035-01-02'),
+        throwsA(_problem(400, 'problems/validation')),
+      );
+      await expectLater(
+        client.weeklyReportSnapshot('2035-02-05'),
+        throwsA(_problem(404, 'problems/not-found')),
+      );
+    });
+
+    test('capabilities advertise weekly-review', () async {
+      final capabilities = await client.capabilities();
+      expect(capabilities.features, contains('weekly-review'));
+    });
+  });
+
   group('tag contract', () {
     test('tag lifecycle: create, progress, rename, delete', () async {
       final tag = await client.createTag(name: 'suite-lifecycle');

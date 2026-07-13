@@ -2,6 +2,23 @@
 
 All notable changes; one entry per squash-merged milestone.
 
+## v1.7.0 — Weekly review
+
+- **Weekly report** (`GET /reports/weekly?week_start=`, Monday-anchored):
+  computed facts only — completed by quadrant plus occurrences,
+  carryover from daily plans, due-date performance (on-time/late/
+  overdue-open), focus time, planned-versus-actual, Q2 focus investment,
+  open Q3 follow-ups, and stale Q4 cleanup candidates. Interpretations
+  stay in the presentation layer by design.
+- **Finalize** stores a versioned snapshot with user notes (schema v6,
+  `weekly_report_snapshots`, insert-or-replace per week); everything
+  else stays computed. `format=csv` exports flat section/metric/value
+  rows.
+- Usage/distraction sections join client-side from the agent's
+  `usage.sqlite3`; the task vault never sees behavioral data.
+- OpenAPI 1.7.0; capabilities advertise `weekly-review`; conformance
+  suite extended with the report contract on both backends.
+
 ## v1.6.0 — Daily planning
 
 - **Daily plans**: one per local date, materialized empty on first read

@@ -13,6 +13,7 @@ REST API
    focus-api
    agent-api
    plan-api
+   report-api
    quadrant-api
    tag-api
    concurrency

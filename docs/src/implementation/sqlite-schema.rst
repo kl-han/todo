@@ -78,6 +78,11 @@ Schema version 5 (fifth migration) adds ``daily_plans`` and
 ``daily_plan_items``; see the migration source and
 :doc:`/reference/database-reference`.
 
+.. versionchanged:: 1.7
+
+Schema version 6 (sixth migration) adds ``weekly_report_snapshots``;
+see the migration source and :doc:`/reference/database-reference`.
+
 Notes:
 
 * There is **no** stored quadrant or status column — both derive from

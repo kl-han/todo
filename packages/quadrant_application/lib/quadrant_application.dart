@@ -20,4 +20,5 @@ export 'src/services/recurrence_service.dart';
 export 'src/services/reminder_service.dart';
 export 'src/services/tag_service.dart';
 export 'src/services/task_service.dart';
+export 'src/services/weekly_review_service.dart';
 export 'src/temporal/timezones.dart';

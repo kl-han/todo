@@ -100,6 +100,7 @@ Future<void> _backendMain(_Bootstrap bootstrap) async {
     reminderRepository: SqliteReminderRepository(database),
     focusSessionRepository: SqliteFocusSessionRepository(database),
     planningRepository: SqlitePlanningRepository(database),
+    reportRepository: SqliteReportRepository(database),
   );
 
   final handler = buildApiHandler(

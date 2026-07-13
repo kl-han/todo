@@ -67,6 +67,7 @@ class VaultManager {
       reminderRepository: SqliteReminderRepository(database),
       focusSessionRepository: SqliteFocusSessionRepository(database),
       planningRepository: SqlitePlanningRepository(database),
+      reportRepository: SqliteReportRepository(database),
     );
     _open[name] = _OpenVault(database, services);
     return services;

@@ -7,6 +7,7 @@ import 'recurrence_service.dart';
 import 'reminder_service.dart';
 import 'tag_service.dart';
 import 'task_service.dart';
+import 'weekly_review_service.dart';
 
 /// The full application service set for one vault. Backends construct one
 /// per vault and hand it to the REST routing layer.
@@ -18,6 +19,7 @@ class AppServices {
     required ReminderRepository reminderRepository,
     required FocusSessionRepository focusSessionRepository,
     required PlanningRepository planningRepository,
+    required ReportRepository reportRepository,
     DateTime Function()? clock,
   })  : tasks = TaskService(taskRepository, tagRepository, clock: clock),
         tags = TagService(tagRepository, taskRepository, clock: clock),
@@ -33,6 +35,10 @@ class AppServices {
             clock: clock),
         planning = PlanningService(planningRepository, taskRepository,
             recurrenceRepository, focusSessionRepository,
+            clock: clock),
+        weeklyReview = WeeklyReviewService(taskRepository,
+            recurrenceRepository, focusSessionRepository,
+            planningRepository, reportRepository,
             clock: clock);
 
   final TaskService tasks;
@@ -43,4 +49,5 @@ class AppServices {
   final ReminderService reminders;
   final FocusService focus;
   final PlanningService planning;
+  final WeeklyReviewService weeklyReview;
 }

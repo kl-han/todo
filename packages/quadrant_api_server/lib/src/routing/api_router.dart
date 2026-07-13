@@ -34,6 +34,7 @@ Handler buildApiHandler(ApiServerConfig config) {
             'reminders',
             'focus-sessions',
             'daily-plans',
+            'weekly-review',
           ],
         }),
         headers: {'content-type': 'application/json'},

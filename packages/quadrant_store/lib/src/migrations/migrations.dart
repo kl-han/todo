@@ -174,6 +174,19 @@ const List<String> migrations = [
     version         INTEGER NOT NULL DEFAULT 1
   );
   ''',
+
+  // v5 -> v6: finalized weekly report snapshots (v1.7). Reports are
+  // normally computed; a snapshot exists only when the user finalizes
+  // one.
+  '''
+  CREATE TABLE weekly_report_snapshots (
+    week_start     TEXT PRIMARY KEY,
+    generated_at   TEXT NOT NULL,
+    report_version INTEGER NOT NULL,
+    summary_json   TEXT NOT NULL,
+    user_notes     TEXT NOT NULL DEFAULT ''
+  );
+  ''',
 ];
 
 /// Current schema version; reported by `/api/v1/health`.
