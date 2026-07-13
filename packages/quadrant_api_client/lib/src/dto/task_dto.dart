@@ -20,6 +20,7 @@ class TaskDto {
     this.dueAtUtc,
     this.timezoneId,
     this.estimatedMinutes,
+    this.recurrenceRuleId,
     this.completedAt,
     this.deletedAt,
   });
@@ -48,6 +49,7 @@ class TaskDto {
             : DateTime.parse(json['due_at_utc'] as String),
         timezoneId: json['timezone_id'] as String?,
         estimatedMinutes: json['estimated_minutes'] as int?,
+        recurrenceRuleId: json['recurrence_rule_id'] as String?,
         completedAt: json['completed_at'] == null
             ? null
             : DateTime.parse(json['completed_at'] as String),
@@ -90,6 +92,9 @@ class TaskDto {
   final String? timezoneId;
 
   final int? estimatedMinutes;
+
+  /// Read-only; managed through the task's recurrence resource.
+  final String? recurrenceRuleId;
 
   final int version;
   final List<String> tagIds;

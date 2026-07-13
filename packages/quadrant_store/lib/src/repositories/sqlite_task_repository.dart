@@ -75,9 +75,9 @@ class SqliteTaskRepository implements TaskRepository {
     _db.execute(
       'INSERT INTO tasks (id, title, notes, is_urgent, is_important, '
       'start_kind, start_date, start_at_utc, due_kind, due_date, '
-      'due_at_utc, timezone_id, estimated_minutes, '
+      'due_at_utc, timezone_id, estimated_minutes, recurrence_rule_id, '
       'completed_at, created_at, updated_at, deleted_at, version) '
-      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       _toRow(task),
     );
   }
@@ -88,8 +88,9 @@ class SqliteTaskRepository implements TaskRepository {
       'UPDATE tasks SET title = ?, notes = ?, is_urgent = ?, '
       'is_important = ?, start_kind = ?, start_date = ?, start_at_utc = ?, '
       'due_kind = ?, due_date = ?, due_at_utc = ?, timezone_id = ?, '
-      'estimated_minutes = ?, completed_at = ?, created_at = ?, '
-      'updated_at = ?, deleted_at = ?, version = ? WHERE id = ?',
+      'estimated_minutes = ?, recurrence_rule_id = ?, completed_at = ?, '
+      'created_at = ?, updated_at = ?, deleted_at = ?, version = ? '
+      'WHERE id = ?',
       [..._toRow(task).sublist(1), task.id],
     );
   }
@@ -146,6 +147,7 @@ class SqliteTaskRepository implements TaskRepository {
             : encodeTime(task.schedule.dueAtUtc!),
         task.schedule.timezoneId,
         task.estimatedMinutes,
+        task.recurrenceRuleId,
         task.completedAt == null ? null : encodeTime(task.completedAt!),
         encodeTime(task.createdAt),
         encodeTime(task.updatedAt),
@@ -169,6 +171,7 @@ class SqliteTaskRepository implements TaskRepository {
           timezoneId: row['timezone_id'] as String?,
         ),
         estimatedMinutes: row['estimated_minutes'] as int?,
+        recurrenceRuleId: row['recurrence_rule_id'] as String?,
         completedAt: decodeTimeOrNull(row['completed_at']),
         createdAt: decodeTime(row['created_at'] as String),
         updatedAt: decodeTime(row['updated_at'] as String),

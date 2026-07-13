@@ -5,7 +5,7 @@ info:
     Normative REST contract for Quadrant Todo. The same contract is served
     by the embedded (loopback) backend and the standalone server; both must
     pass the shared conformance suite. Errors use RFC 9457 Problem Details.
-  version: 1.1.0
+  version: 1.2.0
 
 servers:
   - url: http://127.0.0.1:{port}
@@ -25,6 +25,11 @@ tags:
     description: Grouped Eisenhower-matrix read model.
   - name: agenda
     description: Date-grouped schedule read model over task start/due values.
+  - name: recurrence
+    description: RFC 5545-subset recurrence rules and materialized
+      occurrences.
+  - name: reminders
+    description: Reminder records and platform (re)scheduling state.
   - name: tags
     description: Tag CRUD and progress.
 
@@ -242,6 +247,275 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Task" }
         "404": { $ref: "#/components/responses/NotFoundProblem" }
+
+  /api/v1/vaults/{vault_id}/tasks/{task_id}/recurrence:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - $ref: "#/components/parameters/TaskId"
+    put:
+      operationId: setRecurrence
+      tags: [recurrence]
+      summary: Attach or replace the task's recurrence rule.
+      description: >-
+        The task must have a scheduled anchor side (due, or start when no
+        due exists); occurrences repeat that side's shape. Replacing a
+        rule deletes open occurrences of the old rule and materializes
+        the new one; settled (completed/skipped) occurrences are history
+        and survive.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RecurrenceCreate" }
+      responses:
+        "200":
+          description: The active rule.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Recurrence" }
+        "400": { $ref: "#/components/responses/ValidationProblem" }
+        "404": { $ref: "#/components/responses/NotFoundProblem" }
+    get:
+      operationId: getRecurrence
+      tags: [recurrence]
+      summary: Read the task's recurrence rule.
+      responses:
+        "200":
+          description: The active rule.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Recurrence" }
+        "404": { $ref: "#/components/responses/NotFoundProblem" }
+    delete:
+      operationId: clearRecurrence
+      tags: [recurrence]
+      summary: Detach the task's recurrence rule.
+      description: >-
+        Deletes open occurrences; settled occurrences remain as history.
+        Idempotent.
+      responses:
+        "204":
+          description: The task no longer recurs.
+        "404": { $ref: "#/components/responses/NotFoundProblem" }
+
+  /api/v1/vaults/{vault_id}/occurrences:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+    get:
+      operationId: listOccurrences
+      tags: [recurrence]
+      summary: Materialized occurrences in a date range.
+      description: >-
+        Materializes (idempotently) and returns occurrences whose
+        original date falls in `[from, to]`. Both backends return
+        identical occurrences for identical rules.
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, completed, skipped, all]
+            default: all
+        - name: task_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Occurrences ascending by original date, then id.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [occurrences]
+                properties:
+                  occurrences:
+                    type: array
+                    items: { $ref: "#/components/schemas/Occurrence" }
+        "400": { $ref: "#/components/responses/ValidationProblem" }
+
+  /api/v1/vaults/{vault_id}/occurrences/{occurrence_id}:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - name: occurrence_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getOccurrence
+      tags: [recurrence]
+      summary: Read one occurrence.
+      responses:
+        "200":
+          description: The occurrence.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Occurrence" }
+        "404": { $ref: "#/components/responses/NotFoundProblem" }
+    patch:
+      operationId: updateOccurrence
+      tags: [recurrence]
+      summary: Complete, skip, reopen, or reschedule one occurrence.
+      description: >-
+        Completing one occurrence never touches its siblings or the task.
+        Skipping and rescheduling record a recurrence exception keyed by
+        the original date. Rescheduling accepts the field matching the
+        occurrence's kind (`occurrence_date` or `occurrence_at_utc`).
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [open, completed, skipped]
+                occurrence_date: { type: string, format: date }
+                occurrence_at_utc: { type: string, format: date-time }
+      responses:
+        "200":
+          description: The updated occurrence.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Occurrence" }
+        "400": { $ref: "#/components/responses/ValidationProblem" }
+        "404": { $ref: "#/components/responses/NotFoundProblem" }
+        "412": { $ref: "#/components/responses/VersionConflictProblem" }
+
+  /api/v1/vaults/{vault_id}/reminders:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+    get:
+      operationId: listReminders
+      tags: [reminders]
+      summary: Query reminders, optionally by state and trigger horizon.
+      description: >-
+        `until` filters on the reminder's *effective* trigger instant,
+        which is recomputed from the current task/occurrence schedule on
+        every read — this is what reboot/timezone-change recovery
+        queries.
+      parameters:
+        - name: state
+          in: query
+          schema:
+            type: string
+            enum: [pending, scheduled, delivered, dismissed, all]
+            default: all
+        - name: until
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        "200":
+          description: Reminders ascending by effective trigger, then id.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [reminders]
+                properties:
+                  reminders:
+                    type: array
+                    items: { $ref: "#/components/schemas/Reminder" }
+        "400": { $ref: "#/components/responses/ValidationProblem" }
+    post:
+      operationId: createReminder
+      tags: [reminders]
+      summary: Create a reminder for a task or an occurrence.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReminderCreate" }
+      responses:
+        "201":
+          description: Created reminder.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Reminder" }
+        "400": { $ref: "#/components/responses/ValidationProblem" }
+        "404": { $ref: "#/components/responses/NotFoundProblem" }
+
+  /api/v1/vaults/{vault_id}/reminders/{reminder_id}:
+    parameters:
+      - $ref: "#/components/parameters/VaultId"
+      - name: reminder_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getReminder
+      tags: [reminders]
+      summary: Read one reminder.
+      responses:
+        "200":
+          description: The reminder.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Reminder" }
+        "404": { $ref: "#/components/responses/NotFoundProblem" }
+    patch:
+      operationId: updateReminder
+      tags: [reminders]
+      summary: Advance delivery state or record the platform schedule id.
+      description: >-
+        Platform adapters PATCH `state=scheduled` with their
+        `platform_schedule_id` after registering an OS notification, and
+        `state=delivered`/`dismissed` afterwards. Setting `state=pending`
+        clears the platform id (used when a stale schedule is discarded
+        during recovery).
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                state:
+                  type: string
+                  enum: [pending, scheduled, delivered, dismissed]
+                platform_schedule_id: { type: [string, "null"] }
+      responses:
+        "200":
+          description: The updated reminder.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Reminder" }
+        "400": { $ref: "#/components/responses/ValidationProblem" }
+        "404": { $ref: "#/components/responses/NotFoundProblem" }
+        "412": { $ref: "#/components/responses/VersionConflictProblem" }
+    delete:
+      operationId: deleteReminder
+      tags: [reminders]
+      summary: Delete a reminder.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204":
+          description: Deleted.
+        "404": { $ref: "#/components/responses/NotFoundProblem" }
+        "412": { $ref: "#/components/responses/VersionConflictProblem" }
 
   /api/v1/vaults/{vault_id}/agenda:
     parameters:
@@ -495,7 +769,7 @@ components:
       required:
         [id, title, notes, is_urgent, is_important, status, quadrant,
          start_kind, start_date, start_at_utc, due_kind, due_date,
-         due_at_utc, timezone_id, estimated_minutes,
+         due_at_utc, timezone_id, estimated_minutes, recurrence_rule_id,
          completed_at, created_at, updated_at, deleted_at, version, tag_ids]
       properties:
         id: { type: string, format: uuid }
@@ -538,6 +812,11 @@ components:
           type: [integer, "null"]
           minimum: 1
           maximum: 10080
+        recurrence_rule_id:
+          type: [string, "null"]
+          format: uuid
+          description: >-
+            Read-only; managed through the task's recurrence resource.
         completed_at: { type: [string, "null"], format: date-time }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
@@ -618,6 +897,128 @@ components:
           description: >-
             Sorted by `is_urgent DESC, is_important DESC, updated_at ASC,
             id ASC`.
+
+    Recurrence:
+      type: object
+      required: [id, task_id, dtstart, rrule, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        task_id: { type: string, format: uuid }
+        dtstart:
+          type: string
+          format: date
+          description: First candidate occurrence date (task-local).
+        rrule:
+          type: string
+          description: >-
+            RFC 5545 RRULE (supported subset: FREQ=DAILY|WEEKLY|MONTHLY,
+            INTERVAL, BYDAY with optional ordinal for monthly, BYMONTHDAY,
+            COUNT, UNTIL as a date). Examples:
+            `FREQ=WEEKLY;BYDAY=MO,WE,FR`, `FREQ=MONTHLY;BYMONTHDAY=31`,
+            `FREQ=MONTHLY;BYDAY=-1FR;COUNT=6`.
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    RecurrenceCreate:
+      type: object
+      required: [dtstart, rrule]
+      properties:
+        dtstart: { type: string, format: date }
+        rrule: { type: string }
+
+    Occurrence:
+      type: object
+      required:
+        [id, task_id, recurrence_rule_id, original_date, kind,
+         occurrence_date, occurrence_at_utc, status, completed_at,
+         created_at, updated_at, version]
+      properties:
+        id: { type: string, format: uuid }
+        task_id: { type: string, format: uuid }
+        recurrence_rule_id: { type: string, format: uuid }
+        original_date:
+          type: string
+          format: date
+          description: >-
+            The generated date — the occurrence's permanent identity,
+            unchanged by rescheduling.
+        kind:
+          type: string
+          enum: [start, due]
+          description: Which schedule side of the task this occurrence
+            repeats (the anchor side).
+        occurrence_date:
+          type: [string, "null"]
+          format: date
+          description: Set when the anchor side is date-only.
+        occurrence_at_utc:
+          type: [string, "null"]
+          format: date-time
+          description: >-
+            Set when the anchor side is a date-time: the task's local
+            wall time on the occurrence date in the task's timezone,
+            converted per occurrence (DST-correct).
+        status: { type: string, enum: [open, completed, skipped] }
+        completed_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        version: { type: integer, minimum: 1 }
+
+    Reminder:
+      type: object
+      required:
+        [id, task_id, occurrence_id, trigger_type, trigger_at_utc,
+         offset_minutes, effective_trigger_at_utc, channel, state,
+         platform_schedule_id, created_at, updated_at, version]
+      properties:
+        id: { type: string, format: uuid }
+        task_id: { type: [string, "null"], format: uuid }
+        occurrence_id: { type: [string, "null"], format: uuid }
+        trigger_type:
+          type: string
+          enum: [absolute, relative_start, relative_due]
+        trigger_at_utc:
+          type: [string, "null"]
+          format: date-time
+          description: Set iff trigger_type=absolute.
+        offset_minutes:
+          type: [integer, "null"]
+          minimum: 0
+          description: >-
+            Minutes before the referenced side; set iff trigger_type is
+            relative. Relative reminders require a datetime side.
+        effective_trigger_at_utc:
+          type: [string, "null"]
+          format: date-time
+          description: >-
+            Recomputed from the current task/occurrence schedule on
+            every read; null when the referenced side no longer exists.
+        channel: { type: string, enum: [notification] }
+        state:
+          type: string
+          enum: [pending, scheduled, delivered, dismissed]
+        platform_schedule_id: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        version: { type: integer, minimum: 1 }
+
+    ReminderCreate:
+      type: object
+      required: [trigger_type]
+      description: >-
+        Exactly one of `task_id`/`occurrence_id` must be set. Absolute
+        reminders carry `trigger_at_utc`; relative reminders carry
+        `offset_minutes` and require the referenced side to be a
+        date-time (date-only sides need an absolute reminder).
+      properties:
+        task_id: { type: string, format: uuid }
+        occurrence_id: { type: string, format: uuid }
+        trigger_type:
+          type: string
+          enum: [absolute, relative_start, relative_due]
+        trigger_at_utc: { type: string, format: date-time }
+        offset_minutes: { type: integer, minimum: 0 }
+        channel: { type: string, enum: [notification], default: notification }
 
     AgendaReport:
       type: object

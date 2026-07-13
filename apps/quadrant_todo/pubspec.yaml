@@ -1,6 +1,6 @@
 name: quadrant_todo
 description: Quadrant Todo — Eisenhower-matrix task manager for iOS and Linux.
-version: 1.1.0
+version: 1.2.0
 publish_to: none
 
 # Not a pub-workspace member: this package requires the Flutter SDK, which

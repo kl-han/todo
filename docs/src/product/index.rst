@@ -6,6 +6,7 @@ Product Behavior
 
    task-behavior
    scheduling-behavior
+   recurrence-behavior
    quadrant-behavior
    tag-behavior
    sorting-filtering

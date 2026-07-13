@@ -1,7 +1,7 @@
 Database Reference
 ==================
 
-Schema version: **2** (see :doc:`/implementation/sqlite-schema` for DDL
+Schema version: **3** (see :doc:`/implementation/sqlite-schema` for DDL
 and :doc:`/implementation/migrations` for the upgrade policy).
 
 Tables
@@ -27,6 +27,37 @@ Tables
 
 ``task_tags``
    ``(task_id, tag_id)`` composite PK, both cascading FKs.
+
+``recurrence_rules``
+   ``id`` (uuid PK), ``dtstart`` (plain date), ``rrule`` (canonical
+   RFC 5545 subset), timestamps. Rule rows survive detachment so
+   settled occurrences keep their history.
+
+   .. versionadded:: 1.2
+
+``task_occurrences``
+   ``id`` (uuid PK), ``task_id``/``recurrence_rule_id`` (cascading
+   FKs), ``original_date`` (identity; unique per rule), ``kind``
+   (``start|due``), ``occurrence_date?`` xor ``occurrence_at_utc?``,
+   ``status`` (``open|completed|skipped``), ``completed_at?``,
+   timestamps, ``version``.
+
+   .. versionadded:: 1.2
+
+``recurrence_exceptions``
+   ``(recurrence_rule_id, original_date)`` composite PK,
+   ``exception_type`` (``skipped|rescheduled``), replacement values,
+   ``created_at``.
+
+   .. versionadded:: 1.2
+
+``reminders``
+   ``id`` (uuid PK), ``task_id?`` xor ``occurrence_id?`` (cascading
+   FKs), ``trigger_type``, ``trigger_at_utc?`` xor ``offset_minutes?``,
+   ``channel``, ``state``, ``platform_schedule_id?``, timestamps,
+   ``version``. Effective triggers are computed on read, never stored.
+
+   .. versionadded:: 1.2
 
 Conventions
 -----------

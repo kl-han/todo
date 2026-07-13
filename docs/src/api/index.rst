@@ -8,6 +8,8 @@ REST API
    system-api
    task-api
    agenda-api
+   recurrence-api
+   reminder-api
    quadrant-api
    tag-api
    concurrency

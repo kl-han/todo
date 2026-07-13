@@ -1,6 +1,6 @@
 name: quadrant_domain
 description: Entities, rules, and value objects for Quadrant Todo.
-version: 1.1.0
+version: 1.2.0
 publish_to: none
 resolution: workspace
 

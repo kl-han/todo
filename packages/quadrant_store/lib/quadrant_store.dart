@@ -7,5 +7,7 @@ library;
 
 export 'src/database/quadrant_database.dart';
 export 'src/migrations/migrations.dart' show schemaVersion;
+export 'src/repositories/sqlite_recurrence_repository.dart';
+export 'src/repositories/sqlite_reminder_repository.dart';
 export 'src/repositories/sqlite_tag_repository.dart';
 export 'src/repositories/sqlite_task_repository.dart';

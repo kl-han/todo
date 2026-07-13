@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../dto/capabilities.dart';
 import '../dto/health_report.dart';
+import '../dto/recurrence_dto.dart';
 import '../dto/tag_dto.dart';
 import '../dto/task_dto.dart';
 import '../errors/api_exception.dart';
@@ -231,6 +232,178 @@ class QuadrantApiClient {
         QuadrantGroupDto.fromJson(group as Map<String, Object?>),
     ];
   }
+
+  // ---- Recurrence ----
+
+  /// PUT /tasks/{id}/recurrence — attach or replace the rule.
+  Future<RecurrenceDto> setRecurrence(
+    String taskId, {
+    String vault = 'default',
+    required String dtstart,
+    required String rrule,
+  }) async =>
+      RecurrenceDto.fromJson(await _request(
+        'PUT',
+        '/api/v1/vaults/$vault/tasks/$taskId/recurrence',
+        body: {'dtstart': dtstart, 'rrule': rrule},
+      ));
+
+  Future<RecurrenceDto> getRecurrence(
+    String taskId, {
+    String vault = 'default',
+  }) async =>
+      RecurrenceDto.fromJson(await _request(
+        'GET',
+        '/api/v1/vaults/$vault/tasks/$taskId/recurrence',
+      ));
+
+  Future<void> clearRecurrence(String taskId, {String vault = 'default'}) =>
+      _request(
+        'DELETE',
+        '/api/v1/vaults/$vault/tasks/$taskId/recurrence',
+        expectBody: false,
+      );
+
+  /// GET /occurrences — materializes and lists occurrences whose original
+  /// date lies in `[from, to]` (`YYYY-MM-DD`, inclusive).
+  Future<List<OccurrenceDto>> listOccurrences({
+    String vault = 'default',
+    required String from,
+    required String to,
+    String status = 'all',
+    String? taskId,
+  }) async {
+    final json = await _request(
+      'GET',
+      '/api/v1/vaults/$vault/occurrences',
+      query: {
+        'from': from,
+        'to': to,
+        'status': status,
+        'task_id': ?taskId,
+      },
+    );
+    return [
+      for (final occurrence in json['occurrences'] as List<Object?>)
+        OccurrenceDto.fromJson(occurrence as Map<String, Object?>),
+    ];
+  }
+
+  Future<OccurrenceDto> getOccurrence(
+    String id, {
+    String vault = 'default',
+  }) async =>
+      OccurrenceDto.fromJson(
+          await _request('GET', '/api/v1/vaults/$vault/occurrences/$id'));
+
+  /// PATCH /occurrences/{id} — pass [status] to complete/skip/reopen, or
+  /// exactly one of [occurrenceDate]/[occurrenceAtUtc] to reschedule.
+  Future<OccurrenceDto> updateOccurrence(
+    String id, {
+    String vault = 'default',
+    int? ifMatchVersion,
+    String? status,
+    String? occurrenceDate,
+    DateTime? occurrenceAtUtc,
+  }) async =>
+      OccurrenceDto.fromJson(await _request(
+        'PATCH',
+        '/api/v1/vaults/$vault/occurrences/$id',
+        ifMatchVersion: ifMatchVersion,
+        body: {
+          'status': ?status,
+          'occurrence_date': ?occurrenceDate,
+          'occurrence_at_utc': ?occurrenceAtUtc?.toUtc().toIso8601String(),
+        },
+      ));
+
+  // ---- Reminders ----
+
+  Future<ReminderDto> createReminder({
+    String vault = 'default',
+    String? taskId,
+    String? occurrenceId,
+    required String triggerType,
+    DateTime? triggerAtUtc,
+    int? offsetMinutes,
+    String? channel,
+  }) async =>
+      ReminderDto.fromJson(await _request(
+        'POST',
+        '/api/v1/vaults/$vault/reminders',
+        body: {
+          'task_id': ?taskId,
+          'occurrence_id': ?occurrenceId,
+          'trigger_type': triggerType,
+          'trigger_at_utc': ?triggerAtUtc?.toUtc().toIso8601String(),
+          'offset_minutes': ?offsetMinutes,
+          'channel': ?channel,
+        },
+      ));
+
+  /// GET /reminders — `until` filters on the effective trigger, which the
+  /// backend recomputes from the current schedule on every read (the
+  /// recovery query).
+  Future<List<ReminderDto>> listReminders({
+    String vault = 'default',
+    String state = 'all',
+    DateTime? until,
+  }) async {
+    final json = await _request(
+      'GET',
+      '/api/v1/vaults/$vault/reminders',
+      query: {
+        'state': state,
+        'until': ?until?.toUtc().toIso8601String(),
+      },
+    );
+    return [
+      for (final reminder in json['reminders'] as List<Object?>)
+        ReminderDto.fromJson(reminder as Map<String, Object?>),
+    ];
+  }
+
+  Future<ReminderDto> getReminder(
+    String id, {
+    String vault = 'default',
+  }) async =>
+      ReminderDto.fromJson(
+          await _request('GET', '/api/v1/vaults/$vault/reminders/$id'));
+
+  /// PATCH /reminders/{id}. Pass [clearPlatformScheduleId] to send an
+  /// explicit null (used together with `state=pending` during recovery).
+  Future<ReminderDto> updateReminder(
+    String id, {
+    String vault = 'default',
+    int? ifMatchVersion,
+    String? state,
+    String? platformScheduleId,
+    bool clearPlatformScheduleId = false,
+  }) async =>
+      ReminderDto.fromJson(await _request(
+        'PATCH',
+        '/api/v1/vaults/$vault/reminders/$id',
+        ifMatchVersion: ifMatchVersion,
+        body: {
+          'state': ?state,
+          if (clearPlatformScheduleId)
+            'platform_schedule_id': null
+          else
+            'platform_schedule_id': ?platformScheduleId,
+        },
+      ));
+
+  Future<void> deleteReminder(
+    String id, {
+    String vault = 'default',
+    int? ifMatchVersion,
+  }) =>
+      _request(
+        'DELETE',
+        '/api/v1/vaults/$vault/reminders/$id',
+        ifMatchVersion: ifMatchVersion,
+        expectBody: false,
+      );
 
   // ---- Agenda ----
 

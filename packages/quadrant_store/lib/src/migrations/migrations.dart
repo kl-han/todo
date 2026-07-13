@@ -56,6 +56,67 @@ const List<String> migrations = [
   ALTER TABLE tasks ADD COLUMN timezone_id TEXT;
   ALTER TABLE tasks ADD COLUMN estimated_minutes INTEGER;
   ''',
+
+  // v2 -> v3: recurrence and reminders (v1.2). Occurrence identity is
+  // (rule, original_date); rescheduling moves the value columns, never
+  // the identity. Rule rows survive detachment so settled occurrences
+  // keep their history.
+  '''
+  CREATE TABLE recurrence_rules (
+    id         TEXT PRIMARY KEY,
+    dtstart    TEXT NOT NULL,
+    rrule      TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  ALTER TABLE tasks ADD COLUMN recurrence_rule_id TEXT
+    REFERENCES recurrence_rules(id);
+
+  CREATE TABLE task_occurrences (
+    id                 TEXT PRIMARY KEY,
+    task_id            TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    recurrence_rule_id TEXT NOT NULL
+      REFERENCES recurrence_rules(id) ON DELETE CASCADE,
+    original_date      TEXT NOT NULL,
+    kind               TEXT NOT NULL,
+    occurrence_date    TEXT,
+    occurrence_at_utc  TEXT,
+    status             TEXT NOT NULL DEFAULT 'open',
+    completed_at       TEXT,
+    created_at         TEXT NOT NULL,
+    updated_at         TEXT NOT NULL,
+    version            INTEGER NOT NULL DEFAULT 1,
+    UNIQUE (recurrence_rule_id, original_date)
+  );
+
+  CREATE TABLE recurrence_exceptions (
+    recurrence_rule_id TEXT NOT NULL
+      REFERENCES recurrence_rules(id) ON DELETE CASCADE,
+    original_date      TEXT NOT NULL,
+    exception_type     TEXT NOT NULL,
+    replacement_date   TEXT,
+    replacement_at_utc TEXT,
+    created_at         TEXT NOT NULL,
+    PRIMARY KEY (recurrence_rule_id, original_date)
+  );
+
+  CREATE TABLE reminders (
+    id                   TEXT PRIMARY KEY,
+    task_id              TEXT REFERENCES tasks(id) ON DELETE CASCADE,
+    occurrence_id        TEXT
+      REFERENCES task_occurrences(id) ON DELETE CASCADE,
+    trigger_type         TEXT NOT NULL,
+    trigger_at_utc       TEXT,
+    offset_minutes       INTEGER,
+    channel              TEXT NOT NULL DEFAULT 'notification',
+    state                TEXT NOT NULL DEFAULT 'pending',
+    platform_schedule_id TEXT,
+    created_at           TEXT NOT NULL,
+    updated_at           TEXT NOT NULL,
+    version              INTEGER NOT NULL DEFAULT 1
+  );
+  ''',
 ];
 
 /// Current schema version; reported by `/api/v1/health`.

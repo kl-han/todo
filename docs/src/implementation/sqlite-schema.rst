@@ -60,6 +60,13 @@ Schema version 2 (second migration) adds the temporal columns to
    ALTER TABLE tasks ADD COLUMN timezone_id TEXT;
    ALTER TABLE tasks ADD COLUMN estimated_minutes INTEGER;
 
+.. versionchanged:: 1.2
+
+Schema version 3 (third migration) adds ``recurrence_rules``,
+``task_occurrences``, ``recurrence_exceptions``, and ``reminders``, plus
+``tasks.recurrence_rule_id``; see the migration source and
+:doc:`/reference/database-reference` for the exact columns.
+
 Notes:
 
 * There is **no** stored quadrant or status column — both derive from

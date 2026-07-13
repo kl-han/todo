@@ -2,6 +2,27 @@
 
 All notable changes; one entry per squash-merged milestone.
 
+## v1.2.0 — Recurrence and reminders
+
+- **Recurring tasks** via RFC 5545-subset RRULEs (daily, weekdays, weekly
+  by weekday, monthly by date or ordinal weekday, INTERVAL, COUNT, UNTIL)
+  in the new pure `quadrant_temporal` package. Occurrences materialize
+  idempotently in a rolling window; both backends produce identical sets.
+- Each occurrence is its own record (`open|completed|skipped`) —
+  completing one never resets the task or touches siblings. Skips and
+  reschedules record **exceptions** keyed by the original date; a
+  rescheduled occurrence keeps its identity and is never regenerated.
+- Date-time tasks recur at the same wall-clock time in the task's
+  timezone (UTC instants shift across DST transitions).
+- **Reminders**: absolute or relative (`relative_start`/`relative_due`)
+  records with delivery state and `platform_schedule_id`; the effective
+  trigger is recomputed from the current schedule on every read, giving
+  reboot/timezone-change recovery without cached staleness.
+- Schema v3 (recurrence_rules, task_occurrences, recurrence_exceptions,
+  reminders, tasks.recurrence_rule_id) with its frozen fixture; OpenAPI
+  1.2.0; capabilities advertise `recurrence` and `reminders`; conformance
+  suite extended with the recurrence and reminder contracts.
+
 ## v1.1.0 — Temporal foundation
 
 - Tasks carry an optional **start** and **due** schedule: each side is
