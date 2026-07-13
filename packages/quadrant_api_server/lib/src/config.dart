@@ -15,6 +15,7 @@ class ApiServerConfig {
   const ApiServerConfig({
     required this.backendKind,
     required this.vaults,
+    this.listVaults = _defaultVaultList,
     this.authToken,
     this.schemaVersion = 0,
   });
@@ -23,8 +24,15 @@ class ApiServerConfig {
 
   /// Resolves a vault id to its application services, or null when the
   /// vault does not exist. The embedded backend exposes a single vault
-  /// named `default`; the standalone server may host several (v0.6).
+  /// named `default`; the standalone server may host several.
   final AppServices? Function(String vaultId) vaults;
+
+  /// Names of the accessible vaults, served by `GET /api/v1/vaults`.
+  /// Defaults to just `default`, which is correct for the embedded
+  /// backend; the standalone server passes its vault manager's list.
+  final List<String> Function() listVaults;
+
+  static List<String> _defaultVaultList() => const ['default'];
 
   /// Token required on every route except `/api/v1/health`. The embedded
   /// backend passes a random per-launch value (`Authorization: Local <t>`);

@@ -16,7 +16,7 @@ System API
      - API version, schema version, supported features (v0.7)
    * - ``GET``
      - ``/api/v1/vaults``
-     - List accessible vaults; primarily remote mode (v0.6)
+     - List accessible vaults; primarily remote mode
 
 Health
 ------
@@ -39,3 +39,13 @@ to detect a dead embedded backend.
 ``backend`` is the only field that may differ between backend kinds
 (``embedded`` or ``standalone``); everything else in the API is
 behaviorally identical by contract.
+
+Vaults
+------
+
+.. versionadded:: 0.6
+
+``GET /api/v1/vaults`` returns the accessible vault names. The embedded
+backend always answers exactly ``[{"id": "default"}]``; a standalone
+server lists every vault in its data directory
+(:doc:`/platforms/server/vault-files`).

@@ -64,7 +64,7 @@ class StandaloneBackendHarness implements BackendHarness {
         'bin/quadrant_server.dart',
         '--port', '0',
         '--token', token,
-        '--database', '${dataDir.path}/default.sqlite3',
+        '--data-dir', dataDir.path,
       ],
       workingDirectory: dir,
     );

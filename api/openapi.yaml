@@ -44,6 +44,31 @@ paths:
               schema:
                 $ref: "#/components/schemas/Health"
 
+  /api/v1/vaults:
+    get:
+      operationId: listVaults
+      tags: [system]
+      summary: List accessible vaults.
+      description: >-
+        The embedded backend always returns exactly `default`; a standalone
+        server returns every vault under its data directory.
+      responses:
+        "200":
+          description: Accessible vaults.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [vaults]
+                properties:
+                  vaults:
+                    type: array
+                    items:
+                      type: object
+                      required: [id]
+                      properties:
+                        id: { type: string }
+
   /api/v1/vaults/{vault_id}/tasks:
     parameters:
       - $ref: "#/components/parameters/VaultId"

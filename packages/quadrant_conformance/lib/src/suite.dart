@@ -68,6 +68,11 @@ void runBackendContractSuite(
       );
     });
 
+    test('GET /api/v1/vaults lists the default vault', () async {
+      final vaults = await client.listVaults();
+      expect(vaults, contains('default'));
+    });
+
     test('unknown vaults are a 404 problem', () async {
       await expectLater(
         client.listTasks(vault: 'no-such-vault'),
