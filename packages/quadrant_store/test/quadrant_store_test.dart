@@ -166,6 +166,89 @@ void main() {
     });
   });
 
+  group('recovery and verification', () {
+    late Directory dir;
+
+    setUp(() => dir = Directory.systemTemp.createTempSync('quadrant-rec-'));
+    tearDown(() => dir.deleteSync(recursive: true));
+
+    test('openWithRecovery moves a corrupt file aside and starts fresh',
+        () {
+      final path = '${dir.path}/vault.sqlite3';
+      File(path).writeAsStringSync('this is not a sqlite database at all');
+
+      String? movedTo;
+      final database = QuadrantDatabase.openWithRecovery(
+        path,
+        onCorruptMovedAside: (destination) => movedTo = destination,
+      );
+      expect(database.userVersion, schemaVersion);
+      database.close();
+
+      expect(movedTo, isNotNull);
+      expect(File(movedTo!).existsSync(), isTrue,
+          reason: 'the damaged file must survive for triage');
+      expect(
+        File(movedTo!).readAsStringSync(),
+        contains('not a sqlite database'),
+      );
+    });
+
+    test('openWithRecovery leaves healthy vaults untouched', () {
+      final path = '${dir.path}/vault.sqlite3';
+      final first = QuadrantDatabase.open(path);
+      SqliteTaskRepository(first).insert(Task(
+        id: EntityId.generate(),
+        title: 'keep me',
+        notes: '',
+        isUrgent: false,
+        isImportant: false,
+        createdAt: DateTime.utc(2026),
+        updatedAt: DateTime.utc(2026),
+      ));
+      first.close();
+
+      final reopened = QuadrantDatabase.openWithRecovery(path);
+      final titles = reopened.db
+          .select('SELECT title FROM tasks')
+          .map((row) => row['title']);
+      expect(titles, ['keep me']);
+      reopened.close();
+    });
+
+    test('openWithRecovery still refuses newer-schema databases', () {
+      final path = '${dir.path}/vault.sqlite3';
+      final database = QuadrantDatabase.open(path);
+      database.db.execute('PRAGMA user_version = ${schemaVersion + 5}');
+      database.close();
+
+      expect(
+        () => QuadrantDatabase.openWithRecovery(path),
+        throwsStateError,
+        reason: 'a downgrade is not corruption and must not be recovered',
+      );
+      expect(File(path).existsSync(), isTrue);
+    });
+
+    test('verifySnapshot accepts good snapshots and names bad ones', () {
+      final path = '${dir.path}/vault.sqlite3';
+      final database = QuadrantDatabase.open(path);
+      database.backupTo('${dir.path}/good.sqlite3');
+      database.close();
+
+      expect(QuadrantDatabase.verifySnapshot('${dir.path}/good.sqlite3'),
+          isNull);
+      expect(QuadrantDatabase.verifySnapshot('${dir.path}/missing.sqlite3'),
+          contains('does not exist'));
+
+      File('${dir.path}/garbage.sqlite3').writeAsStringSync('garbage');
+      expect(
+        QuadrantDatabase.verifySnapshot('${dir.path}/garbage.sqlite3'),
+        isNotNull,
+      );
+    });
+  });
+
   group('tag repository', () {
     Tag makeTag(String name) {
       final now = DateTime.utc(2026, 1, 1);

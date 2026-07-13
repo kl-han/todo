@@ -61,7 +61,13 @@ class FileCredentialStore implements CredentialStore {
   Future<String?> read(String key) async {
     final file = _fileFor(key);
     if (!file.existsSync()) return null;
-    return (await file.readAsString()).trim();
+    try {
+      return (await file.readAsString()).trim();
+    } on FileSystemException {
+      // Unreadable credential == missing credential; the caller falls
+      // back to asking for it rather than crashing at boot.
+      return null;
+    }
   }
 
   @override

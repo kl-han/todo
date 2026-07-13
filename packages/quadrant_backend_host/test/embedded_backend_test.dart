@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:http/http.dart' as http;
 import 'package:quadrant_api_client/quadrant_api_client.dart';
 import 'package:quadrant_backend_host/quadrant_backend_host.dart';
@@ -55,6 +57,48 @@ void main() {
       expect(other.token, isNot(backend.token));
       expect(backend.token.length, greaterThanOrEqualTo(43));
       await other.stop();
+    });
+  });
+
+  group('lifecycle recovery', () {
+    test(
+        'ensureHealthy restarts a dead local backend and preserves the '
+        'on-disk vault', () async {
+      final dir = Directory.systemTemp.createTempSync('quadrant-recover-');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final dbPath = '${dir.path}/default.sqlite3';
+
+      Future<BackendConnection> boot() async {
+        final embedded = await EmbeddedBackend.start(databasePath: dbPath);
+        final client = QuadrantApiClient(
+          baseUrl: embedded.baseUrl,
+          authorization: embedded.authorization,
+        );
+        return BackendConnection(
+          mode: BackendMode.local,
+          client: client,
+          shutdown: embedded.stop,
+          restart: () async {
+            client.close();
+            await embedded.stop();
+            return boot();
+          },
+        );
+      }
+
+      final connection = await boot();
+      final created =
+          await connection.client.createTask(title: 'survives restart');
+
+      // Simulate iOS killing the suspended process' backend.
+      await connection.shutdown!.call();
+
+      final recovered = await connection.ensureHealthy();
+      expect(identical(recovered, connection), isFalse,
+          reason: 'a dead backend must be replaced, not reused');
+      final fetched = await recovered.client.getTask(created.id);
+      expect(fetched.title, 'survives restart');
+      await recovered.shutdown?.call();
     });
   });
 
