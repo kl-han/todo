@@ -127,5 +127,6 @@ Contents
    weekly-review
    api-additions
    package-structure
+   web-platform-plan
    milestones
    test-scenarios
