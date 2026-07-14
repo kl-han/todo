@@ -19,16 +19,47 @@ Rules the user can rely on:
   quadrants, and it moves instantly.
 * The quadrant view always presents all four groups, each with its task
   count, even when empty.
-* Quadrant backgrounds use low-opacity status color so task text remains
-  readable: urgent-and-important is red, urgent-only is orange,
-  important-only is purple, and neither urgent nor important is white or
-  neutral. The status color opacity is approximately 10%.
-* Activating empty space inside a quadrant starts creating a new task in
-  that quadrant. The new task inherits urgency and importance from the
-  quadrant where creation began.
-* Dragging a task between quadrants updates its urgency and importance
-  flags to match the destination quadrant. Drag and drop is an input
-  method for changing task metadata; it does not create stored quadrant
-  membership.
 * Within a quadrant, tasks appear in the deterministic matrix order
   (:doc:`sorting-filtering`).
+
+Quadrant colors
+---------------
+
+.. versionadded:: 2.1
+
+Each quadrant panel carries a background tint at about 10% opacity so
+foreground text keeps normal contrast:
+
+* Q1 (urgent + important): red
+* Q3 (urgent only): orange
+* Q2 (important only): purple
+* Q4 (neither): white / neutral
+
+Color is presentation only and never the sole indicator: every quadrant
+keeps its heading and task count, and each task's urgency and importance
+remain available as text and accessibility semantics.
+
+Creating from a quadrant
+------------------------
+
+.. versionadded:: 2.1
+
+Activating empty space inside a quadrant panel starts creating a new
+task in that quadrant: the new task inherits the urgency and importance
+flags of the quadrant where creation began. This is a creation shortcut
+only — the resulting task follows the normal creation rules
+(:doc:`task-behavior`), and quadrant membership is still derived, never
+stored.
+
+Drag and drop
+-------------
+
+.. versionadded:: 2.1
+
+A task can be dragged from one quadrant panel and dropped on another.
+The drop is nothing more than an urgency/importance edit: it updates the
+two flags through the REST boundary, exactly as if they had been toggled
+in the editor. Quadrant membership itself is still never stored. Drop
+targets are indicated before the drop, and platforms without reliable
+drag input provide an equivalent move action — pointer drag is a
+convenience, not the mechanism (:doc:`/platforms/web/interaction-model`).
