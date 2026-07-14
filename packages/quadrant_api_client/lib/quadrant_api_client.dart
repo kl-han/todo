@@ -14,3 +14,4 @@ export 'src/dto/recurrence_dto.dart';
 export 'src/dto/tag_dto.dart';
 export 'src/dto/task_dto.dart';
 export 'src/errors/api_exception.dart';
+export 'src/query/task_grouping.dart';

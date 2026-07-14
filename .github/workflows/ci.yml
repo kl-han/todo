@@ -31,6 +31,24 @@ jobs:
             fi
           done
 
+  flutter:
+    name: Flutter app (analyze and test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Resolve app dependencies
+        working-directory: apps/quadrant_todo
+        run: flutter pub get
+      - name: Analyze
+        working-directory: apps/quadrant_todo
+        run: flutter analyze
+      - name: Widget and integration tests
+        working-directory: apps/quadrant_todo
+        run: flutter test
+
   docs:
     name: Documentation build
     runs-on: ubuntu-latest
