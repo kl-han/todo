@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:quadrant_api_client/quadrant_api_client.dart';
 
 import '../state/app_state.dart';
 import 'task_tile.dart';
 
-/// Flat task list in matrix order with a status filter.
+/// Flat or grouped task list in matrix order with a status filter.
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key, required this.state});
 
@@ -18,6 +19,8 @@ class _TasksScreenState extends State<TasksScreen> {
 
   /// null = every quadrant.
   int? _quadrant;
+
+  TaskGrouping _grouping = TaskGrouping.none;
 
   @override
   Widget build(BuildContext context) {
@@ -63,17 +66,81 @@ class _TasksScreenState extends State<TasksScreen> {
               ),
           ],
         ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: SegmentedButton<TaskGrouping>(
+            key: const ValueKey('grouping-selector'),
+            segments: const [
+              ButtonSegment(value: TaskGrouping.none, label: Text('None')),
+              ButtonSegment(value: TaskGrouping.tag, label: Text('Tag')),
+              ButtonSegment(value: TaskGrouping.flags, label: Text('Flags')),
+              ButtonSegment(value: TaskGrouping.tagAndFlags, label: Text('Both')),
+            ],
+            selected: {_grouping},
+            onSelectionChanged: (selection) =>
+                setState(() => _grouping = selection.first),
+          ),
+        ),
         Expanded(
           child: tasks.isEmpty
               ? const Center(child: Text('Nothing here.'))
-              : ListView(
-                  children: [
-                    for (final task in tasks)
-                      TaskTile(task: task, state: widget.state),
-                  ],
-                ),
+              : _grouping == TaskGrouping.none
+                  ? ListView(
+                      children: [
+                        for (final task in tasks)
+                          TaskTile(task: task, state: widget.state),
+                      ],
+                    )
+                  : _grouped(groupTasks(
+                      tasks,
+                      grouping: _grouping,
+                      tags: widget.state.tags,
+                    )),
         ),
       ],
     );
   }
+
+  Widget _grouped(List<TaskGroup> groups) {
+    final children = <Widget>[];
+    for (final group in groups) {
+      children.add(_header(group));
+      if (group.subgroups.isNotEmpty) {
+        for (final subgroup in group.subgroups) {
+          children.add(_subHeader(subgroup));
+          for (final task in subgroup.tasks) {
+            children.add(TaskTile(task: task, state: widget.state));
+          }
+        }
+      } else {
+        for (final task in group.tasks) {
+          children.add(TaskTile(task: task, state: widget.state));
+        }
+      }
+    }
+    return ListView(children: children);
+  }
+
+  Widget _header(TaskGroup group) {
+    final tag = group.tag;
+    return Padding(
+      key: ValueKey('group-${group.key}'),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(group.label, style: Theme.of(context).textTheme.titleSmall),
+          if (tag != null) Text('${tag.completed}/${tag.total}'),
+        ],
+      ),
+    );
+  }
+
+  Widget _subHeader(TaskGroup subgroup) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 8, 16, 2),
+        child: Text(
+          subgroup.label,
+          style: Theme.of(context).textTheme.labelMedium,
+        ),
+      );
 }
