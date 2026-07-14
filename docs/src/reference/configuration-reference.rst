@@ -35,6 +35,14 @@ Environment variables
 * The server reads no other environment; every knob is a flag
   (:doc:`command-reference`).
 
+Linux debug mode
+----------------
+
+Linux clients may expose a configurable debug mode. When enabled, the UI
+shows a debug toggle next to the sync control and records key events plus
+the application events they trigger. The debug log is exportable so the
+interaction path can be inspected without reading local storage directly.
+
 Tokens
 ------
 

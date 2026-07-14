@@ -8,4 +8,5 @@ Platforms
    android/index
    ios/index
    linux/index
+   web/index
    server/index

@@ -3,8 +3,9 @@ Shared UI
 
 .. versionadded:: 0.3
 
-One Flutter widget tree serves both platforms; only interaction
-conventions differ.
+One Flutter widget tree serves supported client platforms; only
+interaction conventions differ. The UI issues every backend operation
+through the typed REST client.
 
 Structure
 ---------
@@ -12,16 +13,22 @@ Structure
 * ``AppState`` (``lib/state``): a ``ChangeNotifier`` holding fetched
   snapshots (quadrants, tasks, tags) and issuing every mutation through
   the typed REST client. No business rules, no storage.
-* ``HomeShell``: three tabs — **Matrix**, **Tasks**, **Tags** — plus an
-  error banner region and refresh affordance.
+* ``HomeShell``: three tabs — **Matrix**, **Tasks**, and **Editing /
+  Rules** — plus an error banner region and refresh affordance.
 * ``MatrixScreen``: 2×2 quadrant panels with counts and a quick-add field
-  with urgent/important toggles.
-* ``TasksScreen``: flat matrix-ordered list with an open/completed/all
-  filter.
-* ``TagsScreen`` → ``TagTasksScreen``: tag progress list, drilling into a
-  tag's sorted, filtered tasks.
-* ``TaskTile``: the one focusable task row used everywhere; activation
-  (tap or Enter) toggles completion.
+  with urgent/important toggles. Dragging a task between panels updates
+  the task's urgency and importance flags. Activating empty space in a
+  panel starts a new task with that panel's urgency and importance.
+* ``TasksScreen``: matrix-ordered task lists with open/completed/all
+  filtering plus grouping or aggregation by tag, importance/urgency, or
+  both.
+* ``EditingRulesScreen``: filter rule management for boolean task views.
+* ``TaskTile``: the one focusable task row used everywhere. Checkbox
+  activation toggles completion; non-checkbox activation enters editing
+  by default.
+* Task title editing supports ``#`` tag autocomplete and ``!``
+  importance/urgency autocomplete. Desktop-style platforms use keyboard
+  selection; touch platforms allow tapping suggestions.
 
 Error honesty
 -------------

@@ -7,6 +7,9 @@ Tags group tasks across quadrants (projects, contexts, people).
 
 * A tag has a name (unique among live tags, at most 100 characters) and a
   ``#rrggbb`` color.
+* Tag names contain no spaces. In title editing, ``#`` starts tag
+  autocomplete; choosing a suggestion assigns the existing tag, while a
+  space after an unmatched name completes entry of a new tag.
 * Any number of tags can be assigned to a task; assignment and removal are
   idempotent and count as task modifications.
 * Every tag shows **progress**: completed / total across its non-deleted

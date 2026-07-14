@@ -33,3 +33,27 @@ Filtering
 * ``tag_id=<uuid>`` restricts to tasks carrying the tag.
 
 Filters combine; sorting applies after filtering.
+
+Grouping
+--------
+
+The Tasks tab may group or aggregate tasks by tag, by importance and
+urgency, or by both. Grouping is presentation only: it never changes task
+state, tag assignment, or quadrant membership.
+
+Rule filters
+------------
+
+Custom task views may be configured with boolean filter rules. Rules use
+the keywords ``tag``, ``important``, and ``urgent`` plus ``not``, ``and``,
+``or``, parentheses, and comparisons such as ``tag = test1``.
+
+.. code-block:: text
+
+   (tag = test1 and important) or urgent
+
+Precedence is parentheses first, then comparisons, then ``not``, then
+``and``, then ``or``. Rules are validated before use. Valid rules are
+translated by the application/backend layer into SQLite filtering; UI
+widgets do not implement the business rule or build ad hoc storage
+queries.

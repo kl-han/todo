@@ -69,6 +69,11 @@ Roadmap
    * - v2.0
      - Integrated personal planning release
      - Full acceptance list in :doc:`/post-v1/milestones`
+   * - v3.0
+     - Remote-capable release, introduced in phases: remote sync first,
+       then remote authentication
+     - Sync/auth product behavior, backend mode boundaries, web platform
+       behavior, and compatibility/conformance coverage
 
 Post-v1 milestones are specified in detail in :doc:`/post-v1/index`.
 
