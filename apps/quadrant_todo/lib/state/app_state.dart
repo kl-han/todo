@@ -18,6 +18,18 @@ class AppState extends ChangeNotifier {
 
   bool loading = false;
 
+  /// When true (default, the v2.1 behavior), activating a task row opens the
+  /// editor while the checkbox toggles completion; when false, activating
+  /// the row toggles completion (the pre-2.1 behavior). Same rule on every
+  /// platform (see docs/src/product/task-behavior.rst).
+  bool tapOpensEditor = true;
+
+  void setTapOpensEditor(bool value) {
+    if (tapOpensEditor == value) return;
+    tapOpensEditor = value;
+    notifyListeners();
+  }
+
   /// Human-readable load failure; null when healthy. Remote mode shows
   /// this as an explicit offline state.
   String? error;

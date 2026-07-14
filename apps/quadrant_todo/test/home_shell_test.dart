@@ -39,14 +39,25 @@ void main() {
     expect(find.text('new task'), findsOneWidget);
   });
 
-  testWidgets('tapping a task toggles completion via PATCH', (tester) async {
+  testWidgets('checking a task toggles completion via PATCH', (tester) async {
     final backend = FakeBackend()..addTask('toggle me');
     await _pumpApp(tester, backend);
 
-    await tester.tap(find.text('toggle me'));
+    await tester.tap(find.byType(Checkbox));
     await tester.pumpAndSettle();
 
     expect(backend.tasks.single['status'], 'completed');
+  });
+
+  testWidgets('tapping a task row opens the editor by default',
+      (tester) async {
+    final backend = FakeBackend()..addTask('open me');
+    await _pumpApp(tester, backend);
+
+    await tester.tap(find.text('open me'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('task-editor')), findsOneWidget);
   });
 
   // Quarantined: delivering synthetic Alt+N key events to the app-global
