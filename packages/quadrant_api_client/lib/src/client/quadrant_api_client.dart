@@ -75,6 +75,7 @@ class QuadrantApiClient {
     String status = 'open',
     int? quadrant,
     String? tagId,
+    String? filter,
     String sort = 'matrix_modified_asc',
   }) async {
     final json = await _request(
@@ -84,6 +85,7 @@ class QuadrantApiClient {
         'status': status,
         'quadrant': ?quadrant?.toString(),
         'tag_id': ?tagId,
+        'filter': ?filter,
         'sort': sort,
       },
     );

@@ -52,6 +52,11 @@ tasks keep the deterministic ``matrix_modified_asc`` order. Tag groups
 show the tag's progress (:doc:`tag-behavior`), which makes group-by-tag
 the tag overview surface.
 
+The grouping itself is a deterministic, tested transform (``groupTasks``
+in ``quadrant_api_client``) over the fetched task list — the widget tree
+only renders the resulting groups, keeping this presentation logic out
+of widget code.
+
 Filter rules
 ------------
 
@@ -89,3 +94,8 @@ reference in-memory evaluator — lives in the pure ``quadrant_query``
 package. That evaluator defines the reference semantics the
 backend/SQLite translation must reproduce, so a rule filters
 identically on both backends.
+
+A task query applies a rule through the ``filter`` query parameter
+(:doc:`/api/task-api`); the backend advertises the ``filter-rules``
+capability when it honors it. The rule composes with the status,
+quadrant, and tag filters and with the fixed sort order.

@@ -50,6 +50,11 @@ Capabilities
 negotiate before issuing data requests; see :doc:`compatibility` for the
 policy.
 
+.. versionchanged:: 1.8
+   ``features`` advertises ``filter-rules`` when the backend applies the
+   ``filter`` query rule on task queries (:doc:`task-api`,
+   :doc:`/product/sorting-filtering`).
+
 Vaults
 ------
 

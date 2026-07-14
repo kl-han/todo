@@ -38,8 +38,17 @@ Normative definitions live in ``api/openapi.yaml``; this page summarizes.
      - Remove tag
 
 Query parameters: ``status=open|completed|all``, ``quadrant=1|2|3|4``,
-``tag_id=<uuid>``, ``sort=matrix_modified_asc``
+``tag_id=<uuid>``, ``filter=<rule>``, ``sort=matrix_modified_asc``
 (:doc:`/product/sorting-filtering`).
+
+.. versionadded:: 1.8
+   ``filter`` applies a boolean filter rule over task metadata (terms
+   ``tag``, ``important``, ``urgent``; comparison ``tag = <name>``;
+   operators ``not``/``and``/``or`` with parentheses). A malformed rule
+   is a ``400`` validation problem. The rule composes (AND) with the
+   other filters and with the fixed sort order, and is advertised by the
+   ``filter-rules`` capability. Server support is negotiated through
+   ``GET /api/v1/capabilities`` (:doc:`system-api`).
 
 Semantics worth remembering:
 

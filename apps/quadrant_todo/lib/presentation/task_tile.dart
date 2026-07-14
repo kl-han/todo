@@ -5,9 +5,11 @@ import '../state/app_state.dart';
 import 'task_editor.dart';
 import 'undo.dart';
 
-/// Shared focusable task row. Activation (tap, Enter, or Space while
-/// focused) toggles completion — the same behavior on every platform.
-/// The trailing edit affordance (or long press) opens the task editor;
+/// Shared focusable task row. The checkbox toggles completion; activating
+/// the rest of the row (tap, Enter, or Space while focused) opens the task
+/// editor by default — a setting restores toggle-on-activation
+/// (`AppState.tapOpensEditor`). The same rule applies on every platform.
+/// The trailing edit affordance and long press always open the editor;
 /// swiping the row away soft-deletes with an Undo snackbar.
 class TaskTile extends StatelessWidget {
   const TaskTile({super.key, required this.task, required this.state});
@@ -55,11 +57,13 @@ class TaskTile extends StatelessWidget {
             onPressed: () =>
                 showTaskEditor(context, state: state, task: task),
           ),
-          onTap: () => state.toggleTask(task),
+          onTap: () => state.tapOpensEditor
+              ? showTaskEditor(context, state: state, task: task)
+              : state.toggleTask(task),
           onLongPress: () =>
               showTaskEditor(context, state: state, task: task),
-          // Enter on the focused tile activates onTap via ActivateIntent,
-          // which is exactly the Linux "Enter toggles completion" behavior.
+          // Enter on the focused tile activates onTap via ActivateIntent:
+          // opens the editor by default, or toggles when the setting is off.
         ),
       ),
     );

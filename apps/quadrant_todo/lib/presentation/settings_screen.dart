@@ -206,6 +206,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onPressed: _save,
             child: const Text('Save'),
           ),
+          const Divider(height: 32),
+          SwitchListTile(
+            key: const ValueKey('pref-tap-opens-editor'),
+            title: const Text('Tap a task to edit'),
+            subtitle: const Text(
+              'Off: tapping a task toggles completion instead. The checkbox '
+              'always toggles completion.',
+            ),
+            value: widget.state.tapOpensEditor,
+            onChanged: (value) =>
+                setState(() => widget.state.setTapOpensEditor(value)),
+          ),
         ],
       ),
     );

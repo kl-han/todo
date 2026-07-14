@@ -15,7 +15,10 @@ const int _primaryPrecedence = 4;
 
 /// A parsed filter-rule expression. Immutable; evaluate against
 /// [TaskFacts], or serialize back to canonical source with [toSource].
-abstract class FilterExpr {
+///
+/// Sealed so adapters (the store's SQL translation) can switch over the
+/// node types exhaustively without a fallback case.
+sealed class FilterExpr {
   const FilterExpr();
 
   /// True when this expression matches [facts]. Reference semantics for the
