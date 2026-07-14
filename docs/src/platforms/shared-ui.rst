@@ -6,6 +6,12 @@ Shared UI
 One Flutter widget tree serves both platforms; only interaction
 conventions differ.
 
+.. versionchanged:: 2.1
+   The web platform (:doc:`/platforms/web/index`) becomes a third
+   target of the same widget tree. Divergence stays limited to layout
+   breakpoints and input conventions (mouse, keyboard, touch); no task
+   behavior, parsing rule, or metadata semantics may differ per target.
+
 Structure
 ---------
 
@@ -22,6 +28,13 @@ Structure
   tag's sorted, filtered tasks.
 * ``TaskTile``: the one focusable task row used everywhere; activation
   (tap or Enter) toggles completion.
+
+.. versionchanged:: 2.1
+   ``TaskTile`` splits its interactions: the checkbox toggles
+   completion, and activating the rest of the row opens editing by
+   default (a setting restores toggle-on-activation). The Tasks tab
+   gains grouping, and the Editing / Rules tab joins the shell. See
+   :doc:`/product/task-behavior` and :doc:`/product/sorting-filtering`.
 
 Error honesty
 -------------

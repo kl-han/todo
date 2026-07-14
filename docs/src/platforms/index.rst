@@ -9,3 +9,4 @@ Platforms
    ios/index
    linux/index
    server/index
+   web/index
