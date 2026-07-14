@@ -63,6 +63,18 @@ void main() {
     expect(find.byKey(const ValueKey('task-editor')), findsOneWidget);
   });
 
+  testWidgets('the row move menu reclassifies the quadrant', (tester) async {
+    final backend = FakeBackend()..addTask('mover'); // starts in Q4
+    await _pumpApp(tester, backend);
+
+    await tester.tap(find.byIcon(Icons.drive_file_move_outline));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Move to Q1'));
+    await tester.pumpAndSettle();
+
+    expect(backend.tasks.single['quadrant'], 1);
+  });
+
   // Quarantined: delivering synthetic Alt+N key events to the app-global
   // Shortcuts depends on focus routing that is nondeterministic under
   // `flutter test` (the same focus setup passed for Alt+2 in one run and
