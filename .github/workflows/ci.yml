@@ -19,7 +19,7 @@ jobs:
       - name: Unit and contract tests
         run: |
           for pkg in packages/quadrant_domain packages/quadrant_temporal \
-                     packages/quadrant_input \
+                     packages/quadrant_input packages/quadrant_query \
                      packages/quadrant_usage \
                      packages/quadrant_application \
                      packages/quadrant_store packages/quadrant_api_server \

@@ -10,6 +10,8 @@ Package Structure
    │   └── timezone/
    ├── quadrant_input/          # v2.1: inline #/! entry parsing
    │   └── inline_entry/
+   ├── quadrant_query/          # v2.1: boolean filter-rule language
+   │   └── filter_rule/
    ├── quadrant_reminders/
    │   ├── scheduler/
    │   └── platform_contract/
