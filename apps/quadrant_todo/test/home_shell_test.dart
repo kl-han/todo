@@ -75,6 +75,25 @@ void main() {
     expect(find.byKey(const ValueKey('add-tag-field')), findsOneWidget);
   }, skip: true);
 
+  testWidgets('grouping the Tasks tab by flags shows quadrant headers',
+      (tester) async {
+    final backend = FakeBackend()
+      ..addTask('sharp', urgent: true, important: true)
+      ..addTask('idle');
+    await _pumpApp(tester, backend);
+
+    // Switch to the Tasks tab via the navigation bar (deterministic).
+    await tester.tap(find.text('Tasks'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Flags'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Urgent & Important'), findsOneWidget);
+    expect(find.text('Neither'), findsOneWidget);
+    expect(find.text('sharp'), findsOneWidget);
+  });
+
   testWidgets('typing h/j/k/l into a text field does not move focus',
       (tester) async {
     final backend = FakeBackend();
