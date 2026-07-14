@@ -30,6 +30,10 @@ dependency_overrides:
     path: ../../packages/quadrant_domain
   quadrant_store:
     path: ../../packages/quadrant_store
+  quadrant_temporal:
+    path: ../../packages/quadrant_temporal
+  quadrant_usage:
+    path: ../../packages/quadrant_usage
 
 dev_dependencies:
   flutter_test:

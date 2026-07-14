@@ -26,28 +26,50 @@ class MoveFocusIntent extends Intent {
 bool textInputHasFocus() {
   final context = FocusManager.instance.primaryFocus?.context;
   if (context == null) return false;
+  if (_hasEditableTextDescendant(context)) return true;
   return context.findAncestorStateOfType<EditableTextState>() != null ||
       context.widget is EditableText;
+}
+
+bool _hasEditableTextDescendant(BuildContext context) {
+  var found = false;
+  void visit(Element element) {
+    if (found) return;
+    if (element.widget is EditableText) {
+      found = true;
+      return;
+    }
+    element.visitChildElements(visit);
+  }
+
+  if (context is Element) {
+    visit(context);
+  }
+  return found;
 }
 
 /// App-level shortcut map. Vim-style keys are wrapped so they only apply
 /// outside text input.
 Map<ShortcutActivator, Intent> appShortcuts() => {
-      const SingleActivator(LogicalKeyboardKey.digit1, alt: true):
-          const SwitchTabIntent(0),
-      const SingleActivator(LogicalKeyboardKey.digit2, alt: true):
-          const SwitchTabIntent(1),
-      const SingleActivator(LogicalKeyboardKey.digit3, alt: true):
-          const SwitchTabIntent(2),
-      const SingleActivator(LogicalKeyboardKey.keyH):
-          const MoveFocusIntent(TraversalDirection.left),
-      const SingleActivator(LogicalKeyboardKey.keyJ):
-          const MoveFocusIntent(TraversalDirection.down),
-      const SingleActivator(LogicalKeyboardKey.keyK):
-          const MoveFocusIntent(TraversalDirection.up),
-      const SingleActivator(LogicalKeyboardKey.keyL):
-          const MoveFocusIntent(TraversalDirection.right),
-    };
+  const SingleActivator(LogicalKeyboardKey.digit1, alt: true):
+      const SwitchTabIntent(0),
+  const SingleActivator(LogicalKeyboardKey.digit2, alt: true):
+      const SwitchTabIntent(1),
+  const SingleActivator(LogicalKeyboardKey.digit3, alt: true):
+      const SwitchTabIntent(2),
+  const SingleActivator(LogicalKeyboardKey.keyH): const MoveFocusIntent(
+    TraversalDirection.left,
+  ),
+  const SingleActivator(LogicalKeyboardKey.keyJ): const MoveFocusIntent(
+    TraversalDirection.down,
+  ),
+  const SingleActivator(LogicalKeyboardKey.keyK): const MoveFocusIntent(
+    TraversalDirection.up,
+  ),
+  const SingleActivator(LogicalKeyboardKey.keyL): const MoveFocusIntent(
+    TraversalDirection.right,
+  ),
+};
 
 /// Action for [MoveFocusIntent] that respects text-input suppression.
 class MoveFocusAction extends Action<MoveFocusIntent> {
