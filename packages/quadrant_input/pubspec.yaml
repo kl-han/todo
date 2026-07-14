@@ -1,0 +1,13 @@
+name: quadrant_input
+description: >-
+  Inline metadata-entry parsing for Quadrant Todo task titles: the shared
+  #-tag and !-flag entry rules and their autocomplete suggestions.
+version: 1.7.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.9.0
+
+dev_dependencies:
+  test: ^1.25.0

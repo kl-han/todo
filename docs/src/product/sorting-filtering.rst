@@ -83,3 +83,9 @@ backend layers — never evaluated in widget logic — and composes with
 the fixed sort order like any other filter. Rules are created, edited,
 validated, and removed in the Editing / Rules tab
 (:doc:`/platforms/web/responsive-shell`).
+
+The language itself — lexer, parser, precedence, validation, and a
+reference in-memory evaluator — lives in the pure ``quadrant_query``
+package. That evaluator defines the reference semantics the
+backend/SQLite translation must reproduce, so a rule filters
+identically on both backends.
