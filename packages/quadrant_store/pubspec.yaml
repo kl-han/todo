@@ -11,6 +11,7 @@ dependencies:
   quadrant_application: ^1.0.0
   quadrant_usage: ^1.4.0
   quadrant_domain: ^1.0.0
+  quadrant_query: ^1.7.0
   # 2.x loads the system libsqlite3; 3.x pulls a prebuilt native asset at
   # build time, which is unavailable in restricted environments.
   sqlite3: ^2.4.0
