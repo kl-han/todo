@@ -69,6 +69,20 @@ Roadmap
    * - v2.0
      - Integrated personal planning release
      - Full acceptance list in :doc:`/post-v1/milestones`
+   * - v2.1
+     - Web platform: responsive browser frontend over the REST client
+       (Matrix / Tasks / Editing–Rules shell, quadrant colors and drag
+       and drop, inline ``#``/``!`` metadata entry, grouped task views,
+       boolean filter rules)
+     - Web platform pages, product-behavior updates, responsive and
+       accessibility tests, autocomplete and rule-validation tests,
+       REST-boundary tests
+   * - v3.0
+     - Remote sync and remote authentication, with web as the primary
+       remote-client surface
+     - Sync semantics, auth/session/logout/expiry behavior
+       (:doc:`/platforms/web/sync-auth-preparation`), browser auth-state
+       storage decision, expired-session tests
 
 Post-v1 milestones are specified in detail in :doc:`/post-v1/index`.
 

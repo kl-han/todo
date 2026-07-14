@@ -33,3 +33,53 @@ Filtering
 * ``tag_id=<uuid>`` restricts to tasks carrying the tag.
 
 Filters combine; sorting applies after filtering.
+
+Grouping
+--------
+
+.. versionadded:: 2.1
+
+The Tasks view can present the flat list grouped by:
+
+* **tag**,
+* **importance/urgency** (the four flag combinations), or
+* **tag and importance/urgency together** (tag groups subdivided by
+  flags).
+
+Grouping is presentation over the same result set: it combines freely
+with the status filter and with filter rules, and inside every group
+tasks keep the deterministic ``matrix_modified_asc`` order. Tag groups
+show the tag's progress (:doc:`tag-behavior`), which makes group-by-tag
+the tag overview surface.
+
+Filter rules
+------------
+
+.. versionadded:: 2.1
+
+Users can define named filter rules as boolean expressions over task
+metadata and apply them to task views. The expression language has:
+
+* the terms ``tag``, ``important``, and ``urgent``;
+* comparisons such as ``tag = test1``;
+* the operators ``not``, ``and``, ``or``;
+* parentheses for explicit grouping.
+
+Precedence, tightest first:
+
+1. parentheses
+2. comparisons
+3. ``not``
+4. ``and``
+5. ``or``
+
+So ``important and not tag = someday or urgent`` reads as
+``(important and (not (tag = someday))) or urgent``.
+
+Rules are validated as the user edits: validation errors are shown
+clearly, and an invalid rule can be neither saved nor applied. A valid
+rule is translated into backend/SQLite filtering by the application and
+backend layers — never evaluated in widget logic — and composes with
+the fixed sort order like any other filter. Rules are created, edited,
+validated, and removed in the Editing / Rules tab
+(:doc:`/platforms/web/responsive-shell`).
