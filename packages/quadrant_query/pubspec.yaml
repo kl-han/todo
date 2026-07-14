@@ -1,0 +1,16 @@
+name: quadrant_query
+description: >-
+  The boolean filter-rule expression language for Quadrant Todo: lexer,
+  parser, validator, and a reference evaluator over task metadata.
+version: 1.7.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  quadrant_domain: ^1.1.0
+
+dev_dependencies:
+  test: ^1.25.0
