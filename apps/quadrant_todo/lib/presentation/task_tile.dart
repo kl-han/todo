@@ -50,12 +50,28 @@ class TaskTile extends StatelessWidget {
                 : null,
           ),
           subtitle: task.notes.isEmpty ? null : Text(task.notes, maxLines: 1),
-          trailing: IconButton(
-            key: ValueKey('edit-${task.id}'),
-            icon: const Icon(Icons.edit_outlined),
-            tooltip: 'Edit task',
-            onPressed: () =>
-                showTaskEditor(context, state: state, task: task),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              PopupMenuButton<int>(
+                key: ValueKey('move-${task.id}'),
+                icon: const Icon(Icons.drive_file_move_outline),
+                tooltip: 'Move to quadrant',
+                onSelected: (quadrant) =>
+                    state.moveToQuadrant(task, quadrant),
+                itemBuilder: (context) => [
+                  for (var q = 1; q <= 4; q++)
+                    PopupMenuItem<int>(value: q, child: Text('Move to Q$q')),
+                ],
+              ),
+              IconButton(
+                key: ValueKey('edit-${task.id}'),
+                icon: const Icon(Icons.edit_outlined),
+                tooltip: 'Edit task',
+                onPressed: () =>
+                    showTaskEditor(context, state: state, task: task),
+              ),
+            ],
           ),
           onTap: () => state.tapOpensEditor
               ? showTaskEditor(context, state: state, task: task)

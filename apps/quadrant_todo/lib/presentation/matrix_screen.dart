@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:quadrant_api_client/quadrant_api_client.dart';
 
 import '../state/app_state.dart';
+import 'quadrant_colors.dart';
 import 'task_tile.dart';
 
 const _quadrantTitles = {
@@ -93,8 +94,10 @@ class _QuadrantSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+        Container(
+          width: double.infinity,
+          color: quadrantColor(group.quadrant, Theme.of(context).colorScheme),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           child: Text(
             'Q${group.quadrant} — ${_quadrantTitles[group.quadrant]} '
             '(${group.count})',
@@ -125,11 +128,14 @@ class _QuadrantPanel extends StatelessWidget {
     return Card(
       key: ValueKey('quadrant-${group.quadrant}'),
       margin: const EdgeInsets.all(4),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          Container(
+            width: double.infinity,
+            color: quadrantColor(group.quadrant, Theme.of(context).colorScheme),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
             child: Text(
               'Q${group.quadrant} — ${_quadrantTitles[group.quadrant]} '
               '(${group.count})',
