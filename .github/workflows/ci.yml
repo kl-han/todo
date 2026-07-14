@@ -42,11 +42,10 @@ jobs:
       - name: Resolve app dependencies
         working-directory: apps/quadrant_todo
         run: flutter pub get
-      - name: Analyze
+      - name: Widget tests
         working-directory: apps/quadrant_todo
-        run: flutter analyze
-      - name: Widget and integration tests
-        working-directory: apps/quadrant_todo
+        # `flutter test` compiles the whole app and its tests, so it catches
+        # type and API errors the pure-Dart workspace job cannot see.
         run: flutter test
 
   docs:

@@ -19,6 +19,9 @@ dependencies:
   quadrant_backend_host:
     path: ../../packages/quadrant_backend_host
 
+# Every pure-Dart package in the app's transitive graph is publish_to:none,
+# so each must resolve from its local path (none exist on pub.dev). Keep this
+# list complete or `flutter pub get` fails version solving.
 dependency_overrides:
   quadrant_api_client:
     path: ../../packages/quadrant_api_client
@@ -30,6 +33,12 @@ dependency_overrides:
     path: ../../packages/quadrant_domain
   quadrant_store:
     path: ../../packages/quadrant_store
+  quadrant_temporal:
+    path: ../../packages/quadrant_temporal
+  quadrant_usage:
+    path: ../../packages/quadrant_usage
+  quadrant_query:
+    path: ../../packages/quadrant_query
 
 dev_dependencies:
   flutter_test:
