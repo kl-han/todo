@@ -5,7 +5,7 @@ info:
     Normative REST contract for Quadrant Todo. The same contract is served
     by the embedded (loopback) backend and the standalone server; both must
     pass the shared conformance suite. Errors use RFC 9457 Problem Details.
-  version: 1.7.0
+  version: 1.8.0
 
 servers:
   - url: http://127.0.0.1:{port}
@@ -123,6 +123,17 @@ paths:
         - name: tag_id
           in: query
           schema: { type: string, format: uuid }
+        - name: filter
+          in: query
+          description: >-
+            Boolean filter rule over task metadata (terms `tag`,
+            `important`, `urgent`; comparison `tag = <name>`; operators
+            `not`, `and`, `or`; parentheses). Precedence, tightest first:
+            parentheses, comparison, `not`, `and`, `or`. A malformed rule
+            is a 400 validation problem. Composes (AND) with the other
+            filters and with the fixed sort order. Advertised by the
+            `filter-rules` capability.
+          schema: { type: string }
         - name: sort
           in: query
           schema: { type: string, enum: [matrix_modified_asc] }

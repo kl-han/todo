@@ -35,6 +35,7 @@ Handler buildApiHandler(ApiServerConfig config) {
             'focus-sessions',
             'daily-plans',
             'weekly-review',
+            'filter-rules',
           ],
         }),
         headers: {'content-type': 'application/json'},

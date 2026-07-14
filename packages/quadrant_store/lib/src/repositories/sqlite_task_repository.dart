@@ -1,5 +1,6 @@
 import 'package:quadrant_application/quadrant_application.dart';
 import 'package:quadrant_domain/quadrant_domain.dart';
+import 'package:quadrant_query/quadrant_query.dart';
 import 'package:sqlite3/sqlite3.dart';
 
 import '../database/quadrant_database.dart';
@@ -44,6 +45,12 @@ class SqliteTaskRepository implements TaskRepository {
         'id IN (SELECT task_id FROM task_tags WHERE tag_id = ?)',
       );
       args.add(query.tagId);
+    }
+    final filter = query.filter;
+    if (filter != null) {
+      final (sql, filterArgs) = _translateFilter(filter);
+      conditions.add(sql);
+      args.addAll(filterArgs);
     }
 
     final rows = _db.select(
@@ -128,6 +135,36 @@ class SqliteTaskRepository implements TaskRepository {
   }
 
   static int _flag(bool value) => value ? 1 : 0;
+
+  /// Translates a validated filter-rule expression into a SQLite condition
+  /// over the `tasks` row plus positional arguments. Membership matches the
+  /// reference evaluator: `tag = <name>` is true when the task carries a
+  /// non-deleted tag with that exact name.
+  static (String, List<Object?>) _translateFilter(FilterExpr expr) {
+    switch (expr) {
+      case FlagTerm(:final flag):
+        final column = flag == TaskFlag.important ? 'is_important' : 'is_urgent';
+        return ('$column = 1', const []);
+      case TagEquals(:final tagName):
+        return (
+          'id IN (SELECT tt.task_id FROM task_tags tt '
+          'JOIN tags t ON t.id = tt.tag_id '
+          'WHERE t.name = ? AND t.deleted_at IS NULL)',
+          [tagName],
+        );
+      case NotExpr(:final operand):
+        final (sql, args) = _translateFilter(operand);
+        return ('NOT ($sql)', args);
+      case AndExpr(:final left, :final right):
+        final (leftSql, leftArgs) = _translateFilter(left);
+        final (rightSql, rightArgs) = _translateFilter(right);
+        return ('($leftSql AND $rightSql)', [...leftArgs, ...rightArgs]);
+      case OrExpr(:final left, :final right):
+        final (leftSql, leftArgs) = _translateFilter(left);
+        final (rightSql, rightArgs) = _translateFilter(right);
+        return ('($leftSql OR $rightSql)', [...leftArgs, ...rightArgs]);
+    }
+  }
 
   static List<Object?> _toRow(Task task) => [
         task.id,

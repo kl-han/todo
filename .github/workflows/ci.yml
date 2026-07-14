@@ -31,6 +31,23 @@ jobs:
             fi
           done
 
+  flutter:
+    name: Flutter app (analyze and test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Resolve app dependencies
+        working-directory: apps/quadrant_todo
+        run: flutter pub get
+      - name: Widget tests
+        working-directory: apps/quadrant_todo
+        # `flutter test` compiles the whole app and its tests, so it catches
+        # type and API errors the pure-Dart workspace job cannot see.
+        run: flutter test
+
   docs:
     name: Documentation build
     runs-on: ubuntu-latest

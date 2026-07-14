@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:quadrant_todo/bootstrap/local_bootstrap.dart';
@@ -30,8 +31,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('integration task'), findsOneWidget);
 
-    // Toggle completion (Enter-equivalent activation).
-    await tester.tap(find.text('integration task'));
+    // Toggle completion via the checkbox (activating the row now opens the
+    // editor by default).
+    await tester.tap(find.byType(Checkbox));
     await tester.pumpAndSettle();
 
     // Restart the backend — data must have been durably committed.

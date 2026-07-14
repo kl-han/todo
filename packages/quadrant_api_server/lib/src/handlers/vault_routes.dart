@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:quadrant_application/quadrant_application.dart';
 import 'package:quadrant_domain/quadrant_domain.dart';
+import 'package:quadrant_query/quadrant_query.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
@@ -672,10 +673,15 @@ TaskQuery _parseTaskQuery(Map<String, String> params) {
   final sort = rawSort == null
       ? TaskSort.matrixModifiedAsc
       : _parseSort(rawSort);
+  final rawFilter = params['filter'];
+  final filter = rawFilter == null || rawFilter.trim().isEmpty
+      ? null
+      : FilterRule.parse(rawFilter).expression;
   return TaskQuery(
     status: _parseStatusFilter(params['status'] ?? 'open'),
     quadrant: quadrant,
     tagId: params['tag_id'],
+    filter: filter,
     sort: sort,
   );
 }
