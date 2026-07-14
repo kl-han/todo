@@ -8,6 +8,8 @@ Package Structure
    │   ├── recurrence/
    │   ├── occurrence_generation/
    │   └── timezone/
+   ├── quadrant_input/          # v2.1: inline #/! entry parsing
+   │   └── inline_entry/
    ├── quadrant_reminders/
    │   ├── scheduler/
    │   └── platform_contract/

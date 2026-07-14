@@ -12,6 +12,7 @@ environment:
 workspace:
   - packages/quadrant_domain
   - packages/quadrant_temporal
+  - packages/quadrant_input
   - packages/quadrant_usage
   - packages/quadrant_application
   - packages/quadrant_store
