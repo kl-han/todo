@@ -23,29 +23,19 @@ class MoveFocusIntent extends Intent {
 
 /// True when the primary focus is inside an editable text widget; letter
 /// shortcuts must not fire then.
+///
+/// A focused text field may attach its node either at the inner
+/// [EditableText] or at the surrounding [TextField], so both ancestor
+/// checks are needed. Only ancestors count: scanning descendants would
+/// make the shell's own autofocused node (whose subtree contains the
+/// always-present quick-add field) look like text input and suppress
+/// h/j/k/l before the user focuses anything.
 bool textInputHasFocus() {
   final context = FocusManager.instance.primaryFocus?.context;
   if (context == null) return false;
-  if (_hasEditableTextDescendant(context)) return true;
-  return context.findAncestorStateOfType<EditableTextState>() != null ||
-      context.widget is EditableText;
-}
-
-bool _hasEditableTextDescendant(BuildContext context) {
-  var found = false;
-  void visit(Element element) {
-    if (found) return;
-    if (element.widget is EditableText) {
-      found = true;
-      return;
-    }
-    element.visitChildElements(visit);
-  }
-
-  if (context is Element) {
-    visit(context);
-  }
-  return found;
+  return context.widget is EditableText ||
+      context.findAncestorStateOfType<EditableTextState>() != null ||
+      context.findAncestorWidgetOfExactType<TextField>() != null;
 }
 
 /// App-level shortcut map. Vim-style keys are wrapped so they only apply
