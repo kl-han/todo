@@ -13,4 +13,5 @@ Testing
    ios-tests
    linux-tests
    server-tests
+   web-tests
    acceptance-tests

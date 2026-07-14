@@ -37,23 +37,49 @@ Filters combine; sorting applies after filtering.
 Grouping
 --------
 
-The Tasks tab may group or aggregate tasks by tag, by importance and
-urgency, or by both. Grouping is presentation only: it never changes task
-state, tag assignment, or quadrant membership.
+.. versionadded:: 2.1
 
-Rule filters
+The Tasks view can present the flat list grouped by:
+
+* **tag**,
+* **importance/urgency** (the four flag combinations), or
+* **tag and importance/urgency together** (tag groups subdivided by
+  flags).
+
+Grouping is presentation over the same result set: it combines freely
+with the status filter and with filter rules, and inside every group
+tasks keep the deterministic ``matrix_modified_asc`` order. Tag groups
+show the tag's progress (:doc:`tag-behavior`), which makes group-by-tag
+the tag overview surface.
+
+Filter rules
 ------------
 
-Custom task views may be configured with boolean filter rules. Rules use
-the keywords ``tag``, ``important``, and ``urgent`` plus ``not``, ``and``,
-``or``, parentheses, and comparisons such as ``tag = test1``.
+.. versionadded:: 2.1
 
-.. code-block:: text
+Users can define named filter rules as boolean expressions over task
+metadata and apply them to task views. The expression language has:
 
-   (tag = test1 and important) or urgent
+* the terms ``tag``, ``important``, and ``urgent``;
+* comparisons such as ``tag = test1``;
+* the operators ``not``, ``and``, ``or``;
+* parentheses for explicit grouping.
 
-Precedence is parentheses first, then comparisons, then ``not``, then
-``and``, then ``or``. Rules are validated before use. Valid rules are
-translated by the application/backend layer into SQLite filtering; UI
-widgets do not implement the business rule or build ad hoc storage
-queries.
+Precedence, tightest first:
+
+1. parentheses
+2. comparisons
+3. ``not``
+4. ``and``
+5. ``or``
+
+So ``important and not tag = someday or urgent`` reads as
+``(important and (not (tag = someday))) or urgent``.
+
+Rules are validated as the user edits: validation errors are shown
+clearly, and an invalid rule can be neither saved nor applied. A valid
+rule is translated into backend/SQLite filtering by the application and
+backend layers — never evaluated in widget logic — and composes with
+the fixed sort order like any other filter. Rules are created, edited,
+validated, and removed in the Editing / Rules tab
+(:doc:`/platforms/web/responsive-shell`).
