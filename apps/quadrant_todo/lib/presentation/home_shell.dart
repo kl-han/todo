@@ -64,97 +64,99 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
           ),
           MoveFocusIntent: MoveFocusAction(),
         },
-        child: ListenableBuilder(
-          listenable: widget.state,
-          builder: (context, _) {
-            return Scaffold(
-              appBar: AppBar(
-                title: const Text('Quadrant Todo'),
-                actions: [
-                  if (widget.state.loading)
-                    const Padding(
-                      padding: EdgeInsets.only(right: 16),
-                      child: Center(
-                        child: SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+        child: Focus(
+          autofocus: true,
+          child: ListenableBuilder(
+            listenable: widget.state,
+            builder: (context, _) {
+              return Scaffold(
+                appBar: AppBar(
+                  title: const Text('Quadrant Todo'),
+                  actions: [
+                    if (widget.state.loading)
+                      const Padding(
+                        padding: EdgeInsets.only(right: 16),
+                        child: Center(
+                          child: SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      ),
+                    IconButton(
+                      icon: const Icon(Icons.refresh),
+                      tooltip: 'Refresh',
+                      onPressed: widget.state.refresh,
+                    ),
+                    IconButton(
+                      key: const ValueKey('open-settings'),
+                      icon: const Icon(Icons.settings_outlined),
+                      tooltip: 'Backend settings',
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => SettingsScreen(
+                            state: widget.state,
+                            settingsStore: widget.settingsStore,
+                            credentialStore: widget.credentialStore,
+                            applySettings: () async {
+                              final connection = await bootstrapFromSettings(
+                                settingsStore: widget.settingsStore,
+                                credentialStore: widget.credentialStore,
+                              );
+                              await widget.state.switchConnection(connection);
+                            },
+                          ),
                         ),
                       ),
                     ),
-                  IconButton(
-                    icon: const Icon(Icons.refresh),
-                    tooltip: 'Refresh',
-                    onPressed: widget.state.refresh,
-                  ),
-                  IconButton(
-                    key: const ValueKey('open-settings'),
-                    icon: const Icon(Icons.settings_outlined),
-                    tooltip: 'Backend settings',
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => SettingsScreen(
-                          state: widget.state,
-                          settingsStore: widget.settingsStore,
-                          credentialStore: widget.credentialStore,
-                          applySettings: () async {
-                            final connection = await bootstrapFromSettings(
-                              settingsStore: widget.settingsStore,
-                              credentialStore: widget.credentialStore,
-                            );
-                            await widget.state
-                                .switchConnection(connection);
-                          },
-                        ),
+                  ],
+                ),
+                body: Column(
+                  children: [
+                    if (widget.state.error != null)
+                      MaterialBanner(
+                        key: const ValueKey('error-banner'),
+                        content: Text(widget.state.error!),
+                        leading: const Icon(Icons.cloud_off),
+                        actions: [
+                          TextButton(
+                            onPressed: widget.state.refresh,
+                            child: const Text('Retry'),
+                          ),
+                        ],
                       ),
+                    Expanded(
+                      child: switch (_tab) {
+                        0 => MatrixScreen(state: widget.state),
+                        1 => TasksScreen(state: widget.state),
+                        _ => TagsScreen(state: widget.state),
+                      },
                     ),
-                  ),
-                ],
-              ),
-              body: Column(
-                children: [
-                  if (widget.state.error != null)
-                    MaterialBanner(
-                      key: const ValueKey('error-banner'),
-                      content: Text(widget.state.error!),
-                      leading: const Icon(Icons.cloud_off),
-                      actions: [
-                        TextButton(
-                          onPressed: widget.state.refresh,
-                          child: const Text('Retry'),
-                        ),
-                      ],
+                  ],
+                ),
+                bottomNavigationBar: NavigationBar(
+                  selectedIndex: _tab,
+                  onDestinationSelected: (index) =>
+                      setState(() => _tab = index),
+                  destinations: const [
+                    NavigationDestination(
+                      icon: Icon(Icons.grid_view),
+                      label: 'Matrix',
                     ),
-                  Expanded(
-                    child: switch (_tab) {
-                      0 => MatrixScreen(state: widget.state),
-                      1 => TasksScreen(state: widget.state),
-                      _ => TagsScreen(state: widget.state),
-                    },
-                  ),
-                ],
-              ),
-              bottomNavigationBar: NavigationBar(
-                selectedIndex: _tab,
-                onDestinationSelected: (index) =>
-                    setState(() => _tab = index),
-                destinations: const [
-                  NavigationDestination(
-                    icon: Icon(Icons.grid_view),
-                    label: 'Matrix',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.checklist),
-                    label: 'Tasks',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.label),
-                    label: 'Tags',
-                  ),
-                ],
-              ),
-            );
-          },
+                    NavigationDestination(
+                      icon: Icon(Icons.checklist),
+                      label: 'Tasks',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.label),
+                      label: 'Tags',
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
     );

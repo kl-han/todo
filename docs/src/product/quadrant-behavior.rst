@@ -39,6 +39,18 @@ Color is presentation only and never the sole indicator: every quadrant
 keeps its heading and task count, and each task's urgency and importance
 remain available as text and accessibility semantics.
 
+Creating from a quadrant
+------------------------
+
+.. versionadded:: 2.1
+
+Activating empty space inside a quadrant panel starts creating a new
+task in that quadrant: the new task inherits the urgency and importance
+flags of the quadrant where creation began. This is a creation shortcut
+only — the resulting task follows the normal creation rules
+(:doc:`task-behavior`), and quadrant membership is still derived, never
+stored.
+
 Drag and drop
 -------------
 

@@ -23,31 +23,43 @@ class MoveFocusIntent extends Intent {
 
 /// True when the primary focus is inside an editable text widget; letter
 /// shortcuts must not fire then.
+///
+/// A focused text field may attach its node either at the inner
+/// [EditableText] or at the surrounding [TextField], so both ancestor
+/// checks are needed. Only ancestors count: scanning descendants would
+/// make the shell's own autofocused node (whose subtree contains the
+/// always-present quick-add field) look like text input and suppress
+/// h/j/k/l before the user focuses anything.
 bool textInputHasFocus() {
   final context = FocusManager.instance.primaryFocus?.context;
   if (context == null) return false;
-  return context.findAncestorStateOfType<EditableTextState>() != null ||
-      context.widget is EditableText;
+  return context.widget is EditableText ||
+      context.findAncestorStateOfType<EditableTextState>() != null ||
+      context.findAncestorWidgetOfExactType<TextField>() != null;
 }
 
 /// App-level shortcut map. Vim-style keys are wrapped so they only apply
 /// outside text input.
 Map<ShortcutActivator, Intent> appShortcuts() => {
-      const SingleActivator(LogicalKeyboardKey.digit1, alt: true):
-          const SwitchTabIntent(0),
-      const SingleActivator(LogicalKeyboardKey.digit2, alt: true):
-          const SwitchTabIntent(1),
-      const SingleActivator(LogicalKeyboardKey.digit3, alt: true):
-          const SwitchTabIntent(2),
-      const SingleActivator(LogicalKeyboardKey.keyH):
-          const MoveFocusIntent(TraversalDirection.left),
-      const SingleActivator(LogicalKeyboardKey.keyJ):
-          const MoveFocusIntent(TraversalDirection.down),
-      const SingleActivator(LogicalKeyboardKey.keyK):
-          const MoveFocusIntent(TraversalDirection.up),
-      const SingleActivator(LogicalKeyboardKey.keyL):
-          const MoveFocusIntent(TraversalDirection.right),
-    };
+  const SingleActivator(LogicalKeyboardKey.digit1, alt: true):
+      const SwitchTabIntent(0),
+  const SingleActivator(LogicalKeyboardKey.digit2, alt: true):
+      const SwitchTabIntent(1),
+  const SingleActivator(LogicalKeyboardKey.digit3, alt: true):
+      const SwitchTabIntent(2),
+  const SingleActivator(LogicalKeyboardKey.keyH): const MoveFocusIntent(
+    TraversalDirection.left,
+  ),
+  const SingleActivator(LogicalKeyboardKey.keyJ): const MoveFocusIntent(
+    TraversalDirection.down,
+  ),
+  const SingleActivator(LogicalKeyboardKey.keyK): const MoveFocusIntent(
+    TraversalDirection.up,
+  ),
+  const SingleActivator(LogicalKeyboardKey.keyL): const MoveFocusIntent(
+    TraversalDirection.right,
+  ),
+};
 
 /// Action for [MoveFocusIntent] that respects text-input suppression.
 class MoveFocusAction extends Action<MoveFocusIntent> {

@@ -3,8 +3,9 @@ Shared UI
 
 .. versionadded:: 0.3
 
-One Flutter widget tree serves both platforms; only interaction
-conventions differ.
+One Flutter widget tree serves supported client platforms; only
+interaction conventions differ. The UI issues every backend operation
+through the typed REST client.
 
 .. versionchanged:: 2.1
    The web platform (:doc:`/platforms/web/index`) becomes a third

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:quadrant_todo/platform/keyboard.dart';
 import 'package:quadrant_todo/presentation/app.dart';
 import 'package:quadrant_todo/state/app_state.dart';
 
@@ -31,7 +32,9 @@ void main() {
     await _pumpApp(tester, backend);
 
     await tester.enterText(
-        find.byKey(const ValueKey('add-task-field')), 'new task');
+      find.byKey(const ValueKey('add-task-field')),
+      'new task',
+    );
     await tester.tap(find.byKey(const ValueKey('add-task-button')));
     await tester.pumpAndSettle();
 
@@ -78,7 +81,7 @@ void main() {
   // failed the next). The shortcut works at runtime, and tab switching is
   // covered by the NavigationBar-tap tests above; re-enable once the harness
   // delivers app-level shortcuts deterministically.
-  testWidgets('Alt+2 and Alt+3 switch tabs', (tester) async {
+  testWidgets('Alt+1, Alt+2, and Alt+3 switch tabs', (tester) async {
     final backend = FakeBackend()..addTask('a task');
     await _pumpApp(tester, backend);
 
@@ -96,6 +99,9 @@ void main() {
 
     await pressAltDigit(LogicalKeyboardKey.digit3);
     expect(find.byKey(const ValueKey('add-tag-field')), findsOneWidget);
+
+    await pressAltDigit(LogicalKeyboardKey.digit1);
+    expect(find.textContaining('Q1'), findsOneWidget);
   }, skip: true);
 
   testWidgets('grouping the Tasks tab by flags shows quadrant headers',
@@ -117,23 +123,29 @@ void main() {
     expect(find.text('sharp'), findsOneWidget);
   });
 
-  testWidgets('typing h/j/k/l into a text field does not move focus',
-      (tester) async {
+  testWidgets('typing h/j/k/l into a text field does not move focus', (
+    tester,
+  ) async {
     final backend = FakeBackend();
     await _pumpApp(tester, backend);
 
     await tester.tap(find.byKey(const ValueKey('add-task-field')));
     await tester.pump();
+    expect(textInputHasFocus(), isTrue);
+
     await tester.enterText(
-        find.byKey(const ValueKey('add-task-field')), 'hjkl');
+      find.byKey(const ValueKey('add-task-field')),
+      'hjkl',
+    );
     await tester.pump();
 
     // The letters land in the field instead of triggering focus movement.
     expect(find.text('hjkl'), findsOneWidget);
   });
 
-  testWidgets('unreachable backend shows the error banner with retry',
-      (tester) async {
+  testWidgets('unreachable backend shows the error banner with retry', (
+    tester,
+  ) async {
     final backend = FakeBackend()..unreachable = true;
     await _pumpApp(tester, backend);
 
@@ -146,8 +158,9 @@ void main() {
     expect(find.byKey(const ValueKey('error-banner')), findsNothing);
   });
 
-  testWidgets('tags tab lists progress and opens the tag task view',
-      (tester) async {
+  testWidgets('tags tab lists progress and opens the tag task view', (
+    tester,
+  ) async {
     final backend = FakeBackend();
     backend.tags.add({
       'id': 'tag-1',

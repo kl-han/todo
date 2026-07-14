@@ -78,11 +78,14 @@ Roadmap
        accessibility tests, autocomplete and rule-validation tests,
        REST-boundary tests
    * - v3.0
-     - Remote sync and remote authentication, with web as the primary
-       remote-client surface
-     - Sync semantics, auth/session/logout/expiry behavior
+     - Remote-capable release, introduced in phases: remote sync first,
+       then remote authentication, with web as the primary remote-client
+       surface
+     - Sync semantics and backend mode boundaries,
+       auth/session/logout/expiry behavior
        (:doc:`/platforms/web/sync-auth-preparation`), browser auth-state
-       storage decision, expired-session tests
+       storage decision, expired-session and compatibility/conformance
+       tests
 
 Post-v1 milestones are specified in detail in :doc:`/post-v1/index`.
 
