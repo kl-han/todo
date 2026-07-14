@@ -127,6 +127,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          SwitchListTile(
+            key: const ValueKey('pref-tap-opens-editor'),
+            title: const Text('Tap a task to edit'),
+            subtitle: const Text(
+              'Off: tapping a task toggles completion instead. The checkbox '
+              'always toggles completion.',
+            ),
+            value: widget.state.tapOpensEditor,
+            onChanged: (value) =>
+                setState(() => widget.state.setTapOpensEditor(value)),
+          ),
+          const Divider(),
           RadioListTile<BackendMode>(
             key: const ValueKey('mode-local'),
             title: const Text('Local (on this device)'),
