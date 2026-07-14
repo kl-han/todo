@@ -54,21 +54,22 @@ void main() {
     await _pumpApp(tester, backend);
 
     // The app-global Shortcuts only receive key events when a descendant
-    // holds focus, as it does when the window is focused at runtime; give
-    // the shell focus first so the test exercises the real path.
-    FocusScope.of(tester.element(find.byType(NavigationBar))).requestFocus();
-    await tester.pump();
+    // holds focus, as it does when the window is focused at runtime. Focus
+    // the shell (the persistent NavigationBar's scope) before each shortcut;
+    // a tab switch can drop focus, so re-focus before the second one.
+    Future<void> pressAltDigit(LogicalKeyboardKey digit) async {
+      FocusScope.of(tester.element(find.byType(NavigationBar))).requestFocus();
+      await tester.pump();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+      await tester.sendKeyEvent(digit);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+      await tester.pumpAndSettle();
+    }
 
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
-    await tester.sendKeyEvent(LogicalKeyboardKey.digit2);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
-    await tester.pumpAndSettle();
+    await pressAltDigit(LogicalKeyboardKey.digit2);
     expect(find.text('Open'), findsOneWidget); // Tasks tab filter
 
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
-    await tester.sendKeyEvent(LogicalKeyboardKey.digit3);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
-    await tester.pumpAndSettle();
+    await pressAltDigit(LogicalKeyboardKey.digit3);
     expect(find.byKey(const ValueKey('add-tag-field')), findsOneWidget);
   });
 
