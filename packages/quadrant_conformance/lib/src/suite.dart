@@ -255,6 +255,70 @@ void runBackendContractSuite(
     });
   });
 
+  group('filter-rule contract', () {
+    test('capabilities advertise filter-rules', () async {
+      final capabilities = await client.capabilities();
+      expect(capabilities.features, contains('filter-rules'));
+    });
+
+    test('rules select by flags and tags with documented precedence',
+        () async {
+      final alpha = await client.createTag(name: 'filter-alpha');
+      final beta = await client.createTag(name: 'filter-beta');
+
+      // Important, not urgent, tagged alpha.
+      final impAlpha =
+          await client.createTask(title: 'filter-imp-alpha', isImportant: true);
+      await client.assignTag(impAlpha.id, alpha.id);
+      // Urgent, not important, tagged beta.
+      final urgBeta =
+          await client.createTask(title: 'filter-urg-beta', isUrgent: true);
+      await client.assignTag(urgBeta.id, beta.id);
+      // Neither flag, no tag.
+      final plain = await client.createTask(title: 'filter-plain');
+
+      Future<Set<String>> ids(String rule) async =>
+          (await client.listTasks(status: 'all', filter: rule))
+              .map((task) => task.id)
+              .toSet();
+
+      final important = await ids('important');
+      expect(important, contains(impAlpha.id));
+      expect(important, isNot(contains(urgBeta.id)));
+      expect(important, isNot(contains(plain.id)));
+
+      final byTag = await ids('tag = filter-beta');
+      expect(byTag, contains(urgBeta.id));
+      expect(byTag, isNot(contains(impAlpha.id)));
+
+      // not tag = filter-alpha excludes the alpha-tagged task.
+      final notAlpha = await ids('not tag = filter-alpha');
+      expect(notAlpha, isNot(contains(impAlpha.id)));
+      expect(notAlpha, contains(urgBeta.id));
+
+      // important and tag = filter-alpha or urgent
+      //   == (important and tag = filter-alpha) or urgent
+      final precedence =
+          await ids('important and tag = filter-alpha or urgent');
+      expect(precedence, contains(impAlpha.id));
+      expect(precedence, contains(urgBeta.id));
+      expect(precedence, isNot(contains(plain.id)));
+
+      // Parentheses override the default grouping.
+      final grouped =
+          await ids('important and (tag = filter-alpha or urgent)');
+      expect(grouped, contains(impAlpha.id));
+      expect(grouped, isNot(contains(urgBeta.id)));
+    });
+
+    test('a malformed filter rule is a 400 validation problem', () async {
+      await expectLater(
+        client.listTasks(filter: 'important and'),
+        throwsA(_problem(400, 'problems/validation')),
+      );
+    });
+  });
+
   group('temporal contract', () {
     test('date-only schedule round-trips as a plain date', () async {
       final created = await client.createTask(
