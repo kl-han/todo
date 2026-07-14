@@ -53,6 +53,12 @@ void main() {
     final backend = FakeBackend()..addTask('a task');
     await _pumpApp(tester, backend);
 
+    // The app-global Shortcuts only receive key events when a descendant
+    // holds focus, as it does when the window is focused at runtime; give
+    // the shell focus first so the test exercises the real path.
+    FocusScope.of(tester.element(find.byType(NavigationBar))).requestFocus();
+    await tester.pump();
+
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.digit2);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
