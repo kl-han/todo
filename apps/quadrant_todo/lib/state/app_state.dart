@@ -100,6 +100,18 @@ class AppState extends ChangeNotifier {
         ));
   }
 
+  /// Reclassifies a task into [quadrant] (1–4) by setting the urgency and
+  /// importance flags the quadrant implies. This is the keyboard/pointer
+  /// accessible alternative to Matrix drag-and-drop; quadrant membership
+  /// itself is never stored (see docs/src/product/quadrant-behavior.rst).
+  Future<void> moveToQuadrant(TaskDto task, int quadrant) async {
+    await updateTask(
+      task,
+      isUrgent: quadrant == 1 || quadrant == 3,
+      isImportant: quadrant == 1 || quadrant == 2,
+    );
+  }
+
   Future<void> assignTag(TaskDto task, String tagId) async {
     await _mutate(() => _client.assignTag(task.id, tagId));
   }
