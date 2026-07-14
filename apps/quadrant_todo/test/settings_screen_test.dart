@@ -61,9 +61,6 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(
         find.byKey(const ValueKey('remote-url')), 'https://todo.example');
-    // The preference row makes the sheet taller than the surface; scroll the
-    // Save button into view before tapping it.
-    await tester.ensureVisible(find.byKey(const ValueKey('settings-save')));
     await tester.tap(find.byKey(const ValueKey('settings-save')));
     await tester.pumpAndSettle();
 
