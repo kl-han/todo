@@ -52,6 +52,11 @@ tasks keep the deterministic ``matrix_modified_asc`` order. Tag groups
 show the tag's progress (:doc:`tag-behavior`), which makes group-by-tag
 the tag overview surface.
 
+The grouping itself is a deterministic, tested transform (``groupTasks``
+in ``quadrant_api_client``) over the fetched task list — the widget tree
+only renders the resulting groups, keeping this presentation logic out
+of widget code.
+
 Filter rules
 ------------
 
